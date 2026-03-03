@@ -1,0 +1,58 @@
+{
+    "name": "phpsoftbox/multi-tenant",
+    "description": "Multi-tenant extension for PhpSoftBox",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Anton K.",
+            "email": "inspector-who@mail.ru"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "phpsoftbox/auth": "dev-master",
+        "phpsoftbox/broadcaster": "dev-master",
+        "phpsoftbox/cache": "dev-master",
+        "phpsoftbox/clock": "dev-master",
+        "phpsoftbox/config": "dev-master",
+        "phpsoftbox/database": "dev-master",
+        "phpsoftbox/orm": "dev-master",
+        "phpsoftbox/queue": "dev-master",
+        "phpsoftbox/storage": "dev-master",
+        "phpsoftbox/telegram": "dev-master"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.93",
+        "phpsoftbox/cli-app": "dev-master",
+        "phpsoftbox/cs-fixer": "^1.0.4",
+        "phpunit/phpunit": "^11.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpSoftBox\\MultiTenant\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PhpSoftBox\\MultiTenant\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "psb": {
+            "providers": [
+                "PhpSoftBox\\MultiTenant\\Cli\\TenantCommandProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs:fix": "vendor/bin/psb-cs-fixer fix",
+        "cs:check": "vendor/bin/psb-cs-fixer check --diff"
+    }
+}
