@@ -5,7 +5,7 @@
 - выбор tenant в CLI (`--tenant`, по умолчанию `all`)
 - tenant-aware миграции (`tenant:db:migrate`, `tenant:db:rollback`)
 - provisioning tenant БД из template (`tenant:db:provision`)
-- tenant-aware запуск Pushr (`tenant:pushr:serve`) с `PushrAppRegistry` по tenant-приложениям
+- tenant-aware запуск Pushr (`tenant:pushr:serve`, `tenant:pushr:serve:registry`) по tenant-приложениям
 - два провайдера tenant-реестра:
   - `ConfigTenantProvider`
   - `DatabaseTenantProvider` (core БД, JSON payload `data` через ORM typecaster)
@@ -20,11 +20,9 @@
 - `tenant:db:rollback [--tenant=all] [--path=...] [--steps=1] [--fail-fast]`
 - `tenant:db:provision [--tenant=all] [--template=<id>] [--migrations-table=migrations] [--drop-existing] [--fail-fast]`
 - `tenant:pushr:serve [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300]`
+- `tenant:pushr:serve:registry [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300] [--without-default-app]`
 - `tenant:queue:core:run [--max-jobs=0]`
 - `tenant:queue:tenant:run [--tenant=all] [--max-jobs=0]`
-- `telegram:sync [--scope=core|tenant|all] [--tenant=all] [--bot=<name>] [--webhook]`
-- `telegram:poll [--scope=core|tenant|all] [--tenant=all] [--bot=<name>] [--once]`
-- `telegram:webhook [--scope=core|tenant|all] [--tenant=all] [--bot=<name>] [--url=<url>]`
 - `tenant:telegram:poll [--tenant=all] [--bot=<name>] [--once]` (по умолчанию `scope=tenant`)
 - `tenant:telegram:webhook [--tenant=all] [--bot=<name>] [--url=<url>]` (по умолчанию `scope=tenant`)
 - `tenant:telegram:sync [--tenant=all] [--bot=<name>] [--webhook]` (по умолчанию `scope=tenant`)
@@ -202,6 +200,145 @@ return [
 Для host-based определения tenant/central domains:
 - `CentralDomainPolicy`
 - `TenantHostResolver` + `TenantHostResolution`
+
+## Tenant-aware ORM
+
+Для приложений, где tenant БД активируется в runtime, компонент предоставляет
+тонкий tenant-aware слой поверх `phpsoftbox/orm`:
+
+- `TenantEntityManagerRegistryInterface`
+- `TenantEntityManagerRegistry`
+- `TenantEntityManagerInterface`
+- `TenantEntityManager`
+
+`TenantEntityManagerRegistry` оборачивает базовый
+`PhpSoftBox\Orm\Contracts\EntityManagerRegistryInterface` и добавляет
+`tenant(bool $write = true)`. По умолчанию tenant connection называется
+`tenant`, но имя можно переопределить в конструкторе.
+
+```php
+use PhpSoftBox\MultiTenant\Orm\TenantEntityManager;
+use PhpSoftBox\MultiTenant\Orm\TenantEntityManagerInterface;
+use PhpSoftBox\MultiTenant\Orm\TenantEntityManagerRegistry;
+use PhpSoftBox\MultiTenant\Orm\TenantEntityManagerRegistryInterface;
+use PhpSoftBox\Orm\Contracts\EntityManagerRegistryInterface as BaseEntityManagerRegistryInterface;
+use Psr\Container\ContainerInterface;
+
+use function DI\factory;
+
+return [
+    TenantEntityManagerRegistryInterface::class => factory(
+        static fn (ContainerInterface $container): TenantEntityManagerRegistryInterface => new TenantEntityManagerRegistry(
+            registry: $container->get(BaseEntityManagerRegistryInterface::class),
+            tenantConnectionName: 'tenant',
+        ),
+    ),
+
+    TenantEntityManagerInterface::class => factory(
+        static fn (ContainerInterface $container): TenantEntityManagerInterface => new TenantEntityManager(
+            $container->get(TenantEntityManagerRegistryInterface::class),
+        ),
+    ),
+];
+```
+
+`TenantEntityManager` реализует обычный ORM `EntityManagerInterface`, но все
+операции делегирует в `TenantEntityManagerRegistry::tenant()`. Поэтому сервисы
+приложения могут зависеть от `TenantEntityManagerInterface` и не передавать имя
+tenant connection вручную в каждом repository/query.
+
+Registry кеширует entity-manager по паре `read/write + connection`. Метод
+`reset()` очищает кеш полностью, а `reset('tenant')` очищает tenant connection и
+runtime-подключения с префиксом `tenant.`. Это полезно в long-running CLI/worker
+процессах после tenant switch/teardown.
+
+## Tenant changelog
+
+Для tenant-aware аудита ORM изменений доступны:
+
+- `TenantMongoEntityChangeLogger`
+- `TenantUserEntityChangeContextResolver`
+
+`TenantMongoEntityChangeLogger` пишет changelog в MongoDB текущего tenant. Он
+ожидает provider с методом `collection(string): object`, а collection object
+должен иметь метод `insertOne(array)`.
+
+```php
+use PhpSoftBox\MultiTenant\Orm\ChangeLog\TenantMongoEntityChangeLogger;
+
+$logger = new TenantMongoEntityChangeLogger(
+    tenantMongo: $tenantMongo,
+    logger: $psrLogger,
+    collection: 'entity_changelog',
+    technicalFields: ['created_datetime', 'updated_datetime', 'deleted_datetime'],
+);
+```
+
+Update-записи, где изменились только технические поля из `technicalFields`,
+пропускаются. Ошибки записи в MongoDB не прерывают основной ORM flow: logger
+пишет warning в PSR logger, если он передан.
+
+Подключение к ORM выполняется через стандартный changelog handler сущности:
+
+```php
+use PhpSoftBox\MultiTenant\Orm\ChangeLog\TenantMongoEntityChangeLogger;
+use PhpSoftBox\Orm\Attribute\Changelog;
+
+#[Changelog(logHandler: TenantMongoEntityChangeLogger::class)]
+final class Product
+{
+}
+```
+
+`TenantUserEntityChangeContextResolver` добавляет в changelog context:
+
+- `initiatorId` из request attributes `user_id` / `auth_user_id`, request user
+  attributes или `AuthManager`;
+- `initiatorType = user`, если initiator найден, иначе `system`;
+- metadata `tenant_id` из `TenantContextResolver`;
+- metadata `request_method` и `request_path`, если передан request.
+
+```php
+use PhpSoftBox\MultiTenant\Orm\ChangeLog\TenantUserEntityChangeContextResolver;
+
+$contextResolver = new TenantUserEntityChangeContextResolver(
+    tenantResolver: $tenantContextResolver,
+    request: $request,
+    auth: $auth,
+    guards: [null, 'tenant'],
+);
+```
+
+В CLI/worker можно не передавать request/auth. В этом случае resolver вернет
+system-context и, если tenant context активен, добавит только `tenant_id`.
+
+## Profiler
+
+Компонент поддерживает `phpsoftbox/profiler` через:
+
+- `MultiTenantProfilerCollector`
+- `MultiTenantProfilerExtension`
+
+В trace появляется section `multi_tenant` с событиями tenant lifecycle:
+
+- `tenant.resolve`
+- `tenant.provider.reload`
+- `tenant.provider.find_by_host`
+- `tenant.runtime`
+- `tenant.bootstrap`
+- `tenant.bootstrap.teardown`
+- `tenant.bootstrap.rollback`
+- `tenant.connection.activate`
+- `tenant.connection.create`
+- `tenant.connection.reuse`
+- `tenant.connection.deactivate`
+
+Runtime tenant-подключения, которые создает `TenantAwareConnectionManager`, должны получать
+тот же `ProfilerInterface` и `DatabaseProfilerCollector`, что и основная `DatabaseFactory`.
+Тогда SQL из tenant БД попадает в общий `database` section, а не теряется как отдельный runtime connection.
+
+В событиях не сохраняется DSN. Разрешены только безопасные теги: `tenant_id`, `tenant_name`,
+`host`, `scope`, `connection`, `connection_alias`, `bootstrapper`.
 
 Пример DI:
 

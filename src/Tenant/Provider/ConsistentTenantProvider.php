@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpSoftBox\MultiTenant\Tenant\Provider;
 
+use PhpSoftBox\MultiTenant\Contracts\ReloadableTenantProviderInterface;
 use PhpSoftBox\MultiTenant\Contracts\TenantProviderInterface;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinitionNormalizer;
@@ -13,7 +14,7 @@ use function array_diff;
 use function array_keys;
 use function implode;
 
-final class ConsistentTenantProvider implements TenantProviderInterface
+final class ConsistentTenantProvider implements TenantProviderInterface, ReloadableTenantProviderInterface
 {
     private bool $checked = false;
 
@@ -44,6 +45,19 @@ final class ConsistentTenantProvider implements TenantProviderInterface
         $this->ensureParity();
 
         return $this->primary->findByHost($host);
+    }
+
+    public function reload(): void
+    {
+        $this->checked = false;
+
+        if ($this->primary instanceof ReloadableTenantProviderInterface) {
+            $this->primary->reload();
+        }
+
+        if ($this->secondary instanceof ReloadableTenantProviderInterface) {
+            $this->secondary->reload();
+        }
     }
 
     private function ensureParity(): void

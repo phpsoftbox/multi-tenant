@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace PhpSoftBox\MultiTenant\Tests;
 
 use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
-use PhpSoftBox\MultiTenant\Contracts\TenantEntityManagerFactoryInterface;
 use PhpSoftBox\MultiTenant\Entity\Tenant\Domain;
 use PhpSoftBox\MultiTenant\Entity\Tenant\Tenant;
 use PhpSoftBox\MultiTenant\Tenant\Provider\DatabaseTenantProvider;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\Orm\Collection\EntityCollection;
+use PhpSoftBox\Orm\Contracts\ConnectionEntityManagerFactoryInterface;
 use PhpSoftBox\Orm\Contracts\EntityManagerInterface;
 use PhpSoftBox\Orm\Contracts\EntityRepositoryInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -215,7 +215,7 @@ final class DatabaseTenantProviderTest extends TestCase
             },
         );
 
-        $factory = $this->createMock(TenantEntityManagerFactoryInterface::class);
+        $factory = $this->createMock(ConnectionEntityManagerFactoryInterface::class);
         $factory->method('create')->willReturn($entityManager);
 
         $manager = $this->createMock(ConnectionManagerInterface::class);

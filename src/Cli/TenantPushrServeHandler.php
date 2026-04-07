@@ -10,12 +10,16 @@ use PhpSoftBox\CliApp\Command\HandlerInterface;
 use PhpSoftBox\CliApp\Response;
 use PhpSoftBox\CliApp\Runner\RunnerInterface;
 use PhpSoftBox\MultiTenant\Pushr\TenantPushrRegistrySource;
+use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use RuntimeException;
 use Throwable;
 
+use function array_key_exists;
 use function count;
+use function is_array;
 use function is_int;
 use function is_string;
+use function trim;
 
 final readonly class TenantPushrServeHandler implements HandlerInterface
 {
@@ -77,5 +81,85 @@ final readonly class TenantPushrServeHandler implements HandlerInterface
         $server->run();
 
         return Response::SUCCESS;
+    }
+
+    /**
+     * @param list<TenantDefinition> $tenants
+     */
+    private function buildRegistry(array $tenants): PushrAppRegistry
+    {
+        $apps = [];
+
+        foreach ($tenants as $tenant) {
+            [$appId, $secret] = $this->resolvePushrCredentials($tenant);
+
+            if ($appId === null || $secret === null) {
+                throw new RuntimeException(
+                    'У tenant "' . $tenant->id . '" не настроены pushr_app_id/pushr_secret.',
+                );
+            }
+
+            if (isset($apps[$appId]) && $apps[$appId] !== $secret) {
+                throw new RuntimeException(
+                    'Конфликт Pushr app_id "' . $appId . '" у tenant "' . $tenant->id . '".',
+                );
+            }
+
+            $apps[$appId] = $secret;
+        }
+
+        if ($apps === []) {
+            throw new RuntimeException('Не найдено ни одного tenant-приложения для Pushr.');
+        }
+
+        return new PushrAppRegistry($apps);
+    }
+
+    /**
+     * @return array{0:?string, 1:?string}
+     */
+    private function resolvePushrCredentials(TenantDefinition $tenant): array
+    {
+        $appId = $this->normalizeString($tenant->pushrAppId)
+            ?? $this->dataString($tenant->data, 'pushr', 'app_id')
+            ?? $this->dataString($tenant->data, 'pushr_app_id');
+
+        $secret = $this->normalizeString($tenant->pushrSecret)
+            ?? $this->dataString($tenant->data, 'pushr', 'secret')
+            ?? $this->dataString($tenant->data, 'pushr_secret');
+
+        return [$appId, $secret];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function dataString(array $data, string ...$path): ?string
+    {
+        if ($path === []) {
+            return null;
+        }
+
+        $cursor = $data;
+        foreach ($path as $segment) {
+            if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {
+                return null;
+            }
+
+            $cursor = $cursor[$segment];
+        }
+
+        return $this->normalizeString($cursor);
+    }
+
+    private function normalizeString(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 }

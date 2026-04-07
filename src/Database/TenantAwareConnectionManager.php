@@ -9,16 +9,24 @@ use PhpSoftBox\Database\Configurator\DatabaseFactory;
 use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\Database\Contracts\ConnectionInterface;
 use PhpSoftBox\Database\Exception\ConfigurationException;
+use PhpSoftBox\Database\Profiler\DatabaseProfilerCollector;
 use PhpSoftBox\MultiTenant\Contracts\TenantConnectionSwitcherInterface;
+use PhpSoftBox\MultiTenant\Profiler\MultiTenantProfilerCollector;
+use PhpSoftBox\Profiler\ProfilerInterface;
 use RuntimeException;
+use Throwable;
 
 use function array_key_exists;
 use function array_pop;
 use function count;
 use function explode;
+use function get_class;
+use function hrtime;
 use function in_array;
 use function is_array;
 use function is_string;
+use function method_exists;
+use function round;
 use function str_contains;
 use function str_starts_with;
 use function trim;
@@ -37,11 +45,16 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
         private readonly ConnectionManagerInterface $baseManager,
         private readonly Config $config,
         private readonly string $tenantConnectionAlias = 'tenant',
+        private readonly ?ProfilerInterface $profiler = null,
+        private readonly ?DatabaseProfilerCollector $databaseProfilerCollector = null,
+        private readonly ?MultiTenantProfilerCollector $profilerCollector = null,
     ) {
     }
 
     public function activate(string $dsn): void
     {
+        $start = hrtime(true);
+
         $dsn = trim($dsn);
         if ($dsn === '') {
             throw new RuntimeException('Tenant DSN не может быть пустым.');
@@ -50,12 +63,24 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
         $this->stack[]           = $this->activeTenantDsn;
         $this->activeTenantDsn   = $dsn;
         $this->tenantConnections = [];
+
+        $this->recordProfilerEvent('tenant.connection.activate', [
+            'connection_alias' => $this->tenantConnectionAlias,
+            'stack_depth'      => count($this->stack),
+        ], $start);
     }
 
     public function deactivate(): void
     {
+        $start = hrtime(true);
+
         $this->activeTenantDsn   = count($this->stack) > 0 ? array_pop($this->stack) : null;
         $this->tenantConnections = [];
+
+        $this->recordProfilerEvent('tenant.connection.deactivate', [
+            'connection_alias' => $this->tenantConnectionAlias,
+            'stack_depth'      => count($this->stack),
+        ], $start);
     }
 
     public function activeDsn(): ?string
@@ -98,6 +123,21 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
         }
     }
 
+    public function reconnect(string $name = 'default'): ConnectionInterface
+    {
+        if (!$this->shouldOverride($name)) {
+            if (method_exists($this->baseManager, 'reconnect')) {
+                return $this->baseManager->reconnect($name);
+            }
+
+            return $this->baseManager->connection($name);
+        }
+
+        $this->tenantConnections = [];
+
+        return $this->tenantConnection($name);
+    }
+
     private function shouldOverride(string $name): bool
     {
         if ($this->activeTenantDsn === null) {
@@ -122,16 +162,79 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
 
         $cacheKey = $connectionName . '|' . $this->activeTenantDsn;
         if (isset($this->tenantConnections[$cacheKey])) {
+            $this->recordProfilerEvent('tenant.connection.reuse', [
+                'connection'       => $connectionName,
+                'connection_alias' => $this->tenantConnectionAlias,
+            ]);
+
             return $this->tenantConnections[$cacheKey];
         }
 
-        $factory = new DatabaseFactory(
-            $this->runtimeDatabaseConfig($connectionName, $this->activeTenantDsn),
+        $this->tenantConnections[$cacheKey] = $this->profileConnectionCreation(
+            $connectionName,
+            $this->activeTenantDsn,
         );
 
-        $this->tenantConnections[$cacheKey] = $factory->create($connectionName);
-
         return $this->tenantConnections[$cacheKey];
+    }
+
+    private function profileConnectionCreation(string $connectionName, string $dsn): ConnectionInterface
+    {
+        $start = hrtime(true);
+        $tags  = [
+            'connection'       => $connectionName,
+            'connection_alias' => $this->tenantConnectionAlias,
+        ];
+        $span = $this->profiler?->currentTrace() !== null
+            ? $this->profiler->start('tenant.connection.create', $tags, 'multi_tenant')
+            : null;
+
+        try {
+            $factory = new DatabaseFactory(
+                config: $this->runtimeDatabaseConfig($connectionName, $dsn),
+                profiler: $this->profiler,
+                profilerCollector: $this->databaseProfilerCollector,
+            );
+
+            $connection = $factory->create($connectionName);
+            $this->recordProfilerEvent('tenant.connection.create', $tags, $start);
+
+            return $connection;
+        } catch (Throwable $exception) {
+            $span?->fail($exception);
+            $this->recordProfilerEvent(
+                'tenant.connection.create',
+                $tags,
+                $start,
+                failed: true,
+                exceptionClass: get_class($exception),
+            );
+
+            throw $exception;
+        } finally {
+            $span?->finish();
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $tags
+     */
+    private function recordProfilerEvent(
+        string $event,
+        array $tags = [],
+        ?int $startedAtNs = null,
+        bool $failed = false,
+        ?string $exceptionClass = null,
+    ): void {
+        $durationMs = $startedAtNs !== null ? round((hrtime(true) - $startedAtNs) / 1_000_000, 3) : null;
+
+        $this->profilerCollector?->recordEvent(
+            event: $event,
+            tags: $tags,
+            durationMs: $durationMs,
+            failed: $failed,
+            exceptionClass: $exceptionClass,
+        );
     }
 
     /**

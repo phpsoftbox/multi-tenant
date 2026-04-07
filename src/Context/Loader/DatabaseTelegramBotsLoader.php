@@ -8,11 +8,11 @@ use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\MultiTenant\Context\TenantContext;
 use PhpSoftBox\MultiTenant\Context\TenantRuntimeScope;
 use PhpSoftBox\MultiTenant\Contracts\Entity\TelegramBotEntityInterface;
-use PhpSoftBox\MultiTenant\Contracts\TenantEntityManagerFactoryInterface;
 use PhpSoftBox\MultiTenant\Contracts\TenantExtensionLoaderInterface;
 use PhpSoftBox\MultiTenant\Entity\Tenant\TelegramBot;
-use PhpSoftBox\MultiTenant\Tenant\DefaultTenantEntityManagerFactory;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
+use PhpSoftBox\Orm\ConnectionEntityManagerFactory;
+use PhpSoftBox\Orm\Contracts\ConnectionEntityManagerFactoryInterface;
 use PhpSoftBox\Orm\Contracts\EntityManagerInterface;
 use PhpSoftBox\Orm\Contracts\EntityRepositoryInterface;
 use RuntimeException;
@@ -40,7 +40,7 @@ final class DatabaseTelegramBotsLoader implements TenantExtensionLoaderInterface
         private readonly ConnectionManagerInterface $connections,
         private readonly string $connectionName = 'default',
         private readonly string $telegramBotEntityClass = TelegramBot::class,
-        private readonly ?TenantEntityManagerFactoryInterface $entityManagerFactory = null,
+        private readonly ?ConnectionEntityManagerFactoryInterface $entityManagerFactory = null,
         private readonly string $extensionKey = 'telegram.bots',
         private readonly int $extensionPriority = 600,
     ) {
@@ -295,11 +295,8 @@ final class DatabaseTelegramBotsLoader implements TenantExtensionLoaderInterface
             return $this->entityManager;
         }
 
-        $factory             = $this->entityManagerFactory ?? new DefaultTenantEntityManagerFactory();
-        $this->entityManager = $factory->create(
-            connections: $this->connections,
-            connectionName: $this->connectionName,
-        );
+        $factory             = $this->entityManagerFactory ?? new ConnectionEntityManagerFactory($this->connections);
+        $this->entityManager = $factory->create(connectionName: $this->connectionName, write: false);
 
         return $this->entityManager;
     }

@@ -79,7 +79,7 @@ final readonly class TelegramPollScopeHandler implements HandlerInterface
         }
 
         if ($tenants === []) {
-            $runner->io()->writeln('Не найдено tenant для telegram:poll.', 'warning');
+            $runner->io()->writeln('Не найдено tenant для telegram:poll. Tenant polling пропущен.', 'info');
 
             return Response::SUCCESS;
         }

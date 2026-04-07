@@ -7,12 +7,13 @@ namespace PhpSoftBox\MultiTenant\Tenant\Provider;
 use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\MultiTenant\Contracts\Entity\DomainEntityInterface;
 use PhpSoftBox\MultiTenant\Contracts\Entity\TenantEntityInterface;
-use PhpSoftBox\MultiTenant\Contracts\TenantEntityManagerFactoryInterface;
+use PhpSoftBox\MultiTenant\Contracts\ReloadableTenantProviderInterface;
 use PhpSoftBox\MultiTenant\Contracts\TenantProviderInterface;
 use PhpSoftBox\MultiTenant\Entity\Tenant\Domain;
 use PhpSoftBox\MultiTenant\Entity\Tenant\Tenant;
-use PhpSoftBox\MultiTenant\Tenant\DefaultTenantEntityManagerFactory;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
+use PhpSoftBox\Orm\ConnectionEntityManagerFactory;
+use PhpSoftBox\Orm\Contracts\ConnectionEntityManagerFactoryInterface;
 use PhpSoftBox\Orm\Contracts\EntityManagerInterface;
 use PhpSoftBox\Orm\Contracts\EntityRepositoryInterface;
 use RuntimeException;
@@ -27,7 +28,7 @@ use function is_subclass_of;
 use function strtolower;
 use function trim;
 
-final class DatabaseTenantProvider implements TenantProviderInterface
+final class DatabaseTenantProvider implements TenantProviderInterface, ReloadableTenantProviderInterface
 {
     /** @var list<TenantDefinition>|null */
     private ?array $tenants = null;
@@ -44,7 +45,7 @@ final class DatabaseTenantProvider implements TenantProviderInterface
         private readonly string $defaultDatabaseConnection = 'tenant',
         private readonly string $tenantEntityClass = Tenant::class,
         private readonly string $domainEntityClass = Domain::class,
-        private readonly ?TenantEntityManagerFactoryInterface $entityManagerFactory = null,
+        private readonly ?ConnectionEntityManagerFactoryInterface $entityManagerFactory = null,
     ) {
     }
 
@@ -98,6 +99,11 @@ final class DatabaseTenantProvider implements TenantProviderInterface
         }
 
         return null;
+    }
+
+    public function reload(): void
+    {
+        $this->tenants = null;
     }
 
     /**
@@ -222,12 +228,8 @@ final class DatabaseTenantProvider implements TenantProviderInterface
             return $this->entityManager;
         }
 
-        $factory = $this->entityManagerFactory ?? new DefaultTenantEntityManagerFactory();
-
-        $this->entityManager = $factory->create(
-            connections: $this->connections,
-            connectionName: $this->connectionName,
-        );
+        $factory             = $this->entityManagerFactory ?? new ConnectionEntityManagerFactory($this->connections);
+        $this->entityManager = $factory->create(connectionName: $this->connectionName, write: false);
 
         return $this->entityManager;
     }

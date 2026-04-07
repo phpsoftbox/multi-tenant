@@ -10,22 +10,25 @@ use PhpSoftBox\CliApp\Runner\RunnerInterface;
 use PhpSoftBox\Inflector\Contracts\InflectorInterface;
 use PhpSoftBox\Inflector\InflectorFactory;
 use PhpSoftBox\Inflector\LanguageEnum;
-use PhpSoftBox\MultiTenant\Database\TenantDatabaseMigrationService;
+use PhpSoftBox\MultiTenant\Mongo\TenantMongoMigrationService;
+use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\MultiTenant\Tenant\TenantSelector;
 use Throwable;
 
 use function count;
+use function is_array;
 use function is_int;
 use function is_string;
 use function sprintf;
+use function trim;
 
-final readonly class TenantDbRollbackHandler implements HandlerInterface
+final readonly class TenantMongoRollbackHandler implements HandlerInterface
 {
     private InflectorInterface $inflector;
 
     public function __construct(
         private TenantSelector $selector,
-        private TenantDatabaseMigrationService $migrations,
+        private TenantMongoMigrationService $migrations,
         ?InflectorInterface $inflector = null,
     ) {
         $this->inflector = $inflector ?? InflectorFactory::create(LanguageEnum::RU);
@@ -65,20 +68,35 @@ final readonly class TenantDbRollbackHandler implements HandlerInterface
         }
 
         if ($tenants === []) {
-            $runner->io()->writeln('Не найдено tenant для отката миграций.', 'warning');
+            $runner->io()->writeln('Не найдено tenant для отката mongo-миграций.', 'warning');
 
             return Response::SUCCESS;
         }
 
         $errors = 0;
         foreach ($tenants as $item) {
+            $connection = $this->resolveMongoConnection($item);
+            if ($connection === null) {
+                $errors++;
+                $runner->io()->writeln(
+                    '[tenant:' . $item->id . '] не удалось определить mongo connection.',
+                    'error',
+                );
+
+                if ($failFast) {
+                    return Response::FAILURE;
+                }
+
+                continue;
+            }
+
             $runner->io()->writeln(
-                '[tenant:' . $item->id . '] rollback, connection=' . $item->databaseConnection . ', steps=' . $steps,
+                '[tenant:' . $item->id . '] mongo:rollback, connection=' . $connection . ', steps=' . $steps,
                 'info',
             );
 
             try {
-                $rolledBack      = $this->migrations->rollback($item->databaseConnection, $steps, $path);
+                $rolledBack      = $this->migrations->rollback($connection, $steps, $path);
                 $rolledBackCount = count($rolledBack);
                 $runner->io()->writeln(
                     '[tenant:' . $item->id . '] '
@@ -106,5 +124,43 @@ final readonly class TenantDbRollbackHandler implements HandlerInterface
         }
 
         return $errors === 0 ? Response::SUCCESS : Response::FAILURE;
+    }
+
+    private function resolveMongoConnection(TenantDefinition $tenant): ?string
+    {
+        $data = $tenant->data;
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        $resolved = $this->readDataString($data, 'mongo', 'connection')
+            ?? $this->readDataString($data, 'mongo_connection')
+            ?? $this->readDataString($data, 'connections', 'mongo')
+            ?? trim($tenant->databaseConnection);
+
+        return $resolved !== '' ? $resolved : null;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function readDataString(array $data, string ...$path): ?string
+    {
+        $cursor = $data;
+        foreach ($path as $segment) {
+            if (!is_array($cursor) || !isset($cursor[$segment])) {
+                return null;
+            }
+
+            $cursor = $cursor[$segment];
+        }
+
+        if (!is_string($cursor)) {
+            return null;
+        }
+
+        $cursor = trim($cursor);
+
+        return $cursor !== '' ? $cursor : null;
     }
 }

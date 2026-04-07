@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpSoftBox\MultiTenant\Tests;
 
+use PhpSoftBox\Broadcaster\Cli\PushrServeRegistryHandler;
 use PhpSoftBox\CliApp\Command\InMemoryCommandRegistry;
 use PhpSoftBox\MultiTenant\Cli\Telegram\TelegramPollScopeHandler;
 use PhpSoftBox\MultiTenant\Cli\Telegram\TelegramSyncScopeHandler;
@@ -15,18 +16,17 @@ use PhpSoftBox\MultiTenant\Cli\TenantDbMigrateHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantDbProvisionHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantDbRollbackHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantListHandler;
+use PhpSoftBox\MultiTenant\Cli\TenantMongoMigrateHandler;
+use PhpSoftBox\MultiTenant\Cli\TenantMongoRollbackHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantProvisionDispatchHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantProvisionRunHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantPushrServeHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantQueueCoreRunHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantQueueTenantRunHandler;
-use PhpSoftBox\MultiTenant\Cli\UserCreateHandler;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function array_map;
 
 #[CoversClass(TenantCommandProvider::class)]
 #[CoversMethod(TenantCommandProvider::class, 'register')]
@@ -47,22 +47,52 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertSame(TenantConfigCheckHandler::class, $registry->get('tenant:config:check')?->handler);
         $this->assertSame(TenantDbMigrateHandler::class, $registry->get('tenant:db:migrate')?->handler);
         $this->assertSame(TenantDbRollbackHandler::class, $registry->get('tenant:db:rollback')?->handler);
+        $this->assertSame(TenantMongoMigrateHandler::class, $registry->get('tenant:mongo:migrate')?->handler);
+        $this->assertSame(TenantMongoRollbackHandler::class, $registry->get('tenant:mongo:rollback')?->handler);
         $this->assertSame(TenantDbProvisionHandler::class, $registry->get('tenant:db:provision')?->handler);
         $this->assertSame(TenantProvisionDispatchHandler::class, $registry->get('tenant:provision:dispatch')?->handler);
         $this->assertSame(TenantProvisionRunHandler::class, $registry->get('tenant:provision:run')?->handler);
         $this->assertSame(TenantPushrServeHandler::class, $registry->get('tenant:pushr:serve')?->handler);
+        $this->assertSame(PushrServeRegistryHandler::class, $registry->get('tenant:pushr:serve:registry')?->handler);
         $this->assertSame(TenantQueueCoreRunHandler::class, $registry->get('tenant:queue:core:run')?->handler);
         $this->assertSame(TenantQueueTenantRunHandler::class, $registry->get('tenant:queue:tenant:run')?->handler);
         $this->assertSame(TenantAuthSyncHandler::class, $registry->get('tenant:auth:sync')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('tenant:user:create')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('dispatcher:user:create')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('dispatcher:admin:create')?->handler);
-        $this->assertSame(TelegramPollScopeHandler::class, $registry->get('telegram:poll')?->handler);
         $this->assertSame(TelegramPollScopeHandler::class, $registry->get('tenant:telegram:poll')?->handler);
-        $this->assertSame(TelegramWebhookScopeHandler::class, $registry->get('telegram:webhook')?->handler);
         $this->assertSame(TelegramWebhookScopeHandler::class, $registry->get('tenant:telegram:webhook')?->handler);
-        $this->assertSame(TelegramSyncScopeHandler::class, $registry->get('telegram:sync')?->handler);
         $this->assertSame(TelegramSyncScopeHandler::class, $registry->get('tenant:telegram:sync')?->handler);
+        $this->assertNull($registry->get('telegram:poll'));
+        $this->assertNull($registry->get('telegram:webhook'));
+        $this->assertNull($registry->get('telegram:sync'));
+    }
+
+    /**
+     * Проверяет сигнатуру команды tenant:pushr:serve:registry.
+     */
+    #[Test]
+    public function testTenantPushrRegistryServeCommandHasExpectedOptions(): void
+    {
+        $registry = new InMemoryCommandRegistry(withDefaultCommands: false);
+
+        new TenantCommandProvider()->register($registry);
+
+        $command = $registry->get('tenant:pushr:serve:registry');
+
+        $this->assertNotNull($command);
+        $this->assertTrue($command->asDaemon);
+
+        $options = $command->signature->options();
+
+        $this->assertArrayHasKey('tenant', $options);
+        $this->assertArrayHasKey('host', $options);
+        $this->assertArrayHasKey('port', $options);
+        $this->assertArrayHasKey('max-skew', $options);
+        $this->assertArrayHasKey('without-default-app', $options);
+
+        $this->assertSame('all', $options['tenant']->default);
+        $this->assertSame('0.0.0.0', $options['host']->default);
+        $this->assertSame(8080, $options['port']->default);
+        $this->assertSame(300, $options['max-skew']->default);
+        $this->assertTrue($options['without-default-app']->flag);
     }
 
     /**
@@ -182,77 +212,68 @@ final class TenantCommandProviderTest extends TestCase
     }
 
     /**
-     * Проверяет сигнатуру команды tenant:user:create.
+     * Проверяет сигнатуры tenant mongo migration команд.
      */
     #[Test]
-    public function testUserCreateCommandHasExpectedSignature(): void
+    public function testTenantMongoMigrationCommandsHaveExpectedOptions(): void
     {
         $registry = new InMemoryCommandRegistry(withDefaultCommands: false);
 
         new TenantCommandProvider()->register($registry);
 
-        $command = $registry->get('tenant:user:create');
-        $this->assertNotNull($command);
+        $migrate  = $registry->get('tenant:mongo:migrate');
+        $rollback = $registry->get('tenant:mongo:rollback');
 
-        $arguments = $command->signature->arguments();
-        $options   = $command->signature->options();
+        $this->assertNotNull($migrate);
+        $this->assertNotNull($rollback);
 
-        $argumentNames = array_map(static fn ($argument): string => $argument->name, $arguments);
+        $migrateOptions  = $migrate->signature->options();
+        $rollbackOptions = $rollback->signature->options();
 
-        $this->assertContains('phone', $argumentNames);
-        $this->assertContains('password', $argumentNames);
-        $this->assertArrayHasKey('scope', $options);
-        $this->assertArrayHasKey('tenant', $options);
-        $this->assertArrayHasKey('name', $options);
-        $this->assertArrayHasKey('email', $options);
-        $this->assertArrayHasKey('role', $options);
-        $this->assertSame('core', $options['scope']->default);
-        $this->assertSame('all', $options['tenant']->default);
+        $this->assertArrayHasKey('tenant', $migrateOptions);
+        $this->assertArrayHasKey('path', $migrateOptions);
+        $this->assertArrayHasKey('fail-fast', $migrateOptions);
+        $this->assertSame('all', $migrateOptions['tenant']->default);
+
+        $this->assertArrayHasKey('tenant', $rollbackOptions);
+        $this->assertArrayHasKey('path', $rollbackOptions);
+        $this->assertArrayHasKey('steps', $rollbackOptions);
+        $this->assertArrayHasKey('fail-fast', $rollbackOptions);
+        $this->assertSame('all', $rollbackOptions['tenant']->default);
+        $this->assertSame(1, $rollbackOptions['steps']->default);
     }
 
     /**
-     * Проверяет базовую сигнатуру telegram override команд.
+     * Проверяет базовую сигнатуру tenant telegram команд.
      */
     #[Test]
-    public function testTelegramOverrideCommandsHaveScopeOptions(): void
+    public function testTenantTelegramCommandsHaveScopeOptions(): void
     {
         $registry = new InMemoryCommandRegistry(withDefaultCommands: false);
 
         new TenantCommandProvider()->register($registry);
 
-        $sync          = $registry->get('telegram:sync');
         $tenantSync    = $registry->get('tenant:telegram:sync');
-        $poll          = $registry->get('telegram:poll');
         $tenantPoll    = $registry->get('tenant:telegram:poll');
-        $webhook       = $registry->get('telegram:webhook');
         $tenantWebhook = $registry->get('tenant:telegram:webhook');
 
-        $this->assertNotNull($sync);
+        $this->assertNull($registry->get('telegram:sync'));
+        $this->assertNull($registry->get('telegram:poll'));
+        $this->assertNull($registry->get('telegram:webhook'));
         $this->assertNotNull($tenantSync);
-        $this->assertNotNull($poll);
         $this->assertNotNull($tenantPoll);
-        $this->assertNotNull($webhook);
         $this->assertNotNull($tenantWebhook);
 
-        $syncOptions          = $sync->signature->options();
         $tenantSyncOptions    = $tenantSync->signature->options();
-        $pollOptions          = $poll->signature->options();
         $tenantPollOptions    = $tenantPoll->signature->options();
-        $webhookOptions       = $webhook->signature->options();
         $tenantWebhookOptions = $tenantWebhook->signature->options();
 
-        $this->assertArrayHasKey('scope', $syncOptions);
-        $this->assertArrayHasKey('tenant', $syncOptions);
         $this->assertArrayHasKey('scope', $tenantSyncOptions);
         $this->assertArrayHasKey('tenant', $tenantSyncOptions);
         $this->assertSame('tenant', $tenantSyncOptions['scope']->default);
-        $this->assertArrayHasKey('scope', $pollOptions);
-        $this->assertArrayHasKey('tenant', $pollOptions);
         $this->assertArrayHasKey('scope', $tenantPollOptions);
         $this->assertArrayHasKey('tenant', $tenantPollOptions);
         $this->assertSame('tenant', $tenantPollOptions['scope']->default);
-        $this->assertArrayHasKey('scope', $webhookOptions);
-        $this->assertArrayHasKey('tenant', $webhookOptions);
         $this->assertArrayHasKey('scope', $tenantWebhookOptions);
         $this->assertArrayHasKey('tenant', $tenantWebhookOptions);
         $this->assertSame('tenant', $tenantWebhookOptions['scope']->default);

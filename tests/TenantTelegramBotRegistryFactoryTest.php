@@ -180,8 +180,7 @@ final class TenantTelegramBotRegistryFactoryTest extends TestCase
         array $allowedBotCodes,
         ?callable $tokenResolver = null,
         ?callable $handlerResolver = null,
-    ): TenantTelegramBotRegistryFactory
-    {
+    ): TenantTelegramBotRegistryFactory {
         $bots = [];
         foreach ($allowedBotCodes as $botCode) {
             $bots[$botCode] = new TelegramBot(

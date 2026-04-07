@@ -6,6 +6,7 @@ namespace PhpSoftBox\MultiTenant\Tests;
 
 use PhpSoftBox\MultiTenant\Context\TenantContext;
 use PhpSoftBox\MultiTenant\Switcher\TelegramBotRegistrySwitcher;
+use PhpSoftBox\MultiTenant\Telegram\TenantTelegramBotRegistryFactory;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\Telegram\Api\TelegramClient;
 use PhpSoftBox\Telegram\Bot\NullUpdateHandler;
@@ -22,88 +23,99 @@ use Psr\Http\Message\StreamFactoryInterface;
 final class TelegramBotRegistrySwitcherTest extends TestCase
 {
     #[Test]
-    public function testActivateReplacesTokensAndDeactivateRestoresBots(): void
+    public function testActivateReplacesBotsFromTenantRegistryAndDeactivateRestoresCore(): void
     {
-        $httpClient     = $this->createMock(ClientInterface::class);
-        $requestFactory = $this->createMock(RequestFactoryInterface::class);
-        $streamFactory  = $this->createMock(StreamFactoryInterface::class);
+        $registry = $this->coreRegistry();
+        $factory  = $this->tenantFactory(['main_tenant']);
+        $switcher = new TelegramBotRegistrySwitcher($registry, $factory);
 
-        $initialClient = new TelegramClient(
-            token: 'token-old',
-            httpClient: $httpClient,
-            requestFactory: $requestFactory,
-            streamFactory: $streamFactory,
-        );
-
-        $registry = new TelegramBotRegistry('account', [
-            new TelegramBot('account', 'token-old', $initialClient, new NullUpdateHandler()),
+        $context = $this->context([
+            'telegram' => [
+                'bot_code'  => 'main_tenant',
+                'bot_token' => 'tenant-token',
+            ],
         ]);
 
-        $switcher = new TelegramBotRegistrySwitcher(
-            registry: $registry,
-            httpClient: $httpClient,
-            requestFactory: $requestFactory,
-            streamFactory: $streamFactory,
-        );
+        $switcher->activate([], $context);
 
-        $context = $this->context();
-
-        $switcher->activate([
-            'bots' => [
-                ['code' => 'account', 'token' => 'token-new'],
-            ],
-            'default' => 'account',
-        ], $context);
-
-        $this->assertSame('token-new', $registry->token('account'));
-        $this->assertSame('token-new', $registry->token());
+        $this->assertSame('tenant-token', $registry->token('main_tenant'));
+        $this->assertSame('tenant-token', $registry->token('account'));
+        $this->assertSame('tenant-token', $registry->token());
 
         $switcher->deactivate($context);
 
-        $this->assertSame('token-old', $registry->token('account'));
-        $this->assertSame('token-old', $registry->token());
+        $this->assertSame('core-account-token', $registry->token('account'));
+        $this->assertSame('core-account-token', $registry->token());
     }
 
     #[Test]
-    public function testActivateMapsRegistryDefaultToRequestedDefaultBot(): void
+    public function testActivateClearsRegistryWhenTenantHasNoAllowedBots(): void
+    {
+        $registry = $this->coreRegistry();
+        $factory  = $this->tenantFactory(['main_tenant']);
+        $switcher = new TelegramBotRegistrySwitcher($registry, $factory);
+
+        $context = $this->context([]);
+
+        $switcher->activate([], $context);
+
+        $this->assertSame([], $registry->names());
+        $this->assertNull($registry->token('account'));
+
+        $switcher->deactivate($context);
+
+        $this->assertSame('core-account-token', $registry->token('account'));
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function context(array $data): TenantContext
+    {
+        return new TenantContext(new TenantDefinition('tenant-alpha', 'Tenant Alpha', null, 'tenant', data: $data));
+    }
+
+    private function coreRegistry(): TelegramBotRegistry
     {
         $httpClient     = $this->createMock(ClientInterface::class);
         $requestFactory = $this->createMock(RequestFactoryInterface::class);
         $streamFactory  = $this->createMock(StreamFactoryInterface::class);
 
-        $initialClient = new TelegramClient(
-            token: 'token-old',
-            httpClient: $httpClient,
-            requestFactory: $requestFactory,
-            streamFactory: $streamFactory,
-        );
-
-        $registry = new TelegramBotRegistry('account', [
-            new TelegramBot('account', 'token-old', $initialClient, new NullUpdateHandler()),
+        return new TelegramBotRegistry('account', [
+            new TelegramBot(
+                'account',
+                'core-account-token',
+                new TelegramClient('core-account-token', $httpClient, $requestFactory, $streamFactory),
+                new NullUpdateHandler(),
+            ),
         ]);
-
-        $switcher = new TelegramBotRegistrySwitcher(
-            registry: $registry,
-            httpClient: $httpClient,
-            requestFactory: $requestFactory,
-            streamFactory: $streamFactory,
-        );
-
-        $context = $this->context();
-
-        $switcher->activate([
-            'bots' => [
-                ['code' => 'main', 'token' => 'token-main'],
-            ],
-            'default' => 'main',
-        ], $context);
-
-        $this->assertSame('token-main', $registry->token('main'));
-        $this->assertSame('token-main', $registry->token());
     }
 
-    private function context(): TenantContext
+    /**
+     * @param list<string> $allowedCodes
+     */
+    private function tenantFactory(array $allowedCodes): TenantTelegramBotRegistryFactory
     {
-        return new TenantContext(new TenantDefinition('tenant-alpha', 'Tenant Alpha', null, 'tenant'));
+        $httpClient     = $this->createMock(ClientInterface::class);
+        $requestFactory = $this->createMock(RequestFactoryInterface::class);
+        $streamFactory  = $this->createMock(StreamFactoryInterface::class);
+
+        $bots = [];
+        foreach ($allowedCodes as $code) {
+            $token  = 'core-' . $code . '-token';
+            $bots[] = new TelegramBot(
+                name: $code,
+                token: $token,
+                client: new TelegramClient($token, $httpClient, $requestFactory, $streamFactory),
+                handler: new NullUpdateHandler(),
+            );
+        }
+
+        return new TenantTelegramBotRegistryFactory(
+            coreRegistry: new TelegramBotRegistry(defaultBot: 'main', bots: $bots),
+            httpClient: $httpClient,
+            requestFactory: $requestFactory,
+            streamFactory: $streamFactory,
+        );
     }
 }

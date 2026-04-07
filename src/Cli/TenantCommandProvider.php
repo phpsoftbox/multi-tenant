@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpSoftBox\MultiTenant\Cli;
 
-use PhpSoftBox\CliApp\Command\ArgumentDefinition;
+use PhpSoftBox\Broadcaster\Cli\PushrServeRegistryHandler;
 use PhpSoftBox\CliApp\Command\Command;
 use PhpSoftBox\CliApp\Command\CommandRegistryInterface;
 use PhpSoftBox\CliApp\Command\OptionDefinition;
@@ -130,6 +130,80 @@ final class TenantCommandProvider implements CommandProviderInterface
                 ),
             ],
             handler: TenantDbRollbackHandler::class,
+        ));
+
+        $registry->register(Command::define(
+            name: 'tenant:mongo:migrate',
+            description: 'Применить mongo-миграции tenant',
+            signature: [
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'Tenant ID или all (по умолчанию)',
+                    required: false,
+                    default: 'all',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'path',
+                    short: 'p',
+                    description: 'Относительный путь внутри базы миграций',
+                    required: false,
+                    default: null,
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'fail-fast',
+                    short: 'f',
+                    description: 'Остановиться на первой ошибке',
+                    flag: true,
+                    required: false,
+                    default: false,
+                    type: 'bool',
+                ),
+            ],
+            handler: TenantMongoMigrateHandler::class,
+        ));
+
+        $registry->register(Command::define(
+            name: 'tenant:mongo:rollback',
+            description: 'Откатить mongo-миграции tenant',
+            signature: [
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'Tenant ID или all (по умолчанию)',
+                    required: false,
+                    default: 'all',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'path',
+                    short: 'p',
+                    description: 'Относительный путь внутри базы миграций',
+                    required: false,
+                    default: null,
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'steps',
+                    short: 's',
+                    description: 'Количество откатываемых миграций',
+                    required: false,
+                    default: 1,
+                    type: 'int',
+                ),
+                new OptionDefinition(
+                    name: 'fail-fast',
+                    short: 'f',
+                    description: 'Остановиться на первой ошибке',
+                    flag: true,
+                    required: false,
+                    default: false,
+                    type: 'bool',
+                ),
+            ],
+            handler: TenantMongoRollbackHandler::class,
         ));
 
         $registry->register(Command::define(
@@ -345,6 +419,56 @@ final class TenantCommandProvider implements CommandProviderInterface
         ));
 
         $registry->register(Command::define(
+            name: 'tenant:pushr:serve:registry',
+            description: 'Запустить Pushr сервер на общем реестре приложений с tenant-фильтром',
+            signature: [
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'Tenant ID или all (по умолчанию)',
+                    required: false,
+                    default: 'all',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'host',
+                    short: 'H',
+                    description: 'Хост',
+                    required: false,
+                    default: '0.0.0.0',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'port',
+                    short: 'p',
+                    description: 'Порт',
+                    required: false,
+                    default: 8080,
+                    type: 'int',
+                ),
+                new OptionDefinition(
+                    name: 'max-skew',
+                    short: 'k',
+                    description: 'Допустимое смещение времени (секунды)',
+                    required: false,
+                    default: 300,
+                    type: 'int',
+                ),
+                new OptionDefinition(
+                    name: 'without-default-app',
+                    short: null,
+                    description: 'Не добавлять приложение из pushr.app_id/pushr.secret',
+                    flag: true,
+                    required: false,
+                    default: false,
+                    type: 'bool',
+                ),
+            ],
+            handler: PushrServeRegistryHandler::class,
+            asDaemon: true,
+        ));
+
+        $registry->register(Command::define(
             name: 'tenant:queue:core:run',
             description: 'Запустить queue worker в core-режиме (один worker, tenant_id в payload)',
             signature: [
@@ -415,150 +539,6 @@ final class TenantCommandProvider implements CommandProviderInterface
                 ),
             ],
             handler: TenantAuthSyncHandler::class,
-        ));
-
-        $registry->register(Command::define(
-            name: 'tenant:user:create',
-            description: 'Создаёт пользователя (администратора) в core или tenant контуре',
-            signature: [
-                new ArgumentDefinition(
-                    name: 'phone',
-                    description: 'Телефон пользователя',
-                    required: true,
-                    type: 'string',
-                ),
-                new ArgumentDefinition(
-                    name: 'password',
-                    description: 'Пароль пользователя',
-                    required: true,
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'scope',
-                    short: 's',
-                    description: 'Контур создания: core|tenant',
-                    required: false,
-                    default: 'core',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'tenant',
-                    short: 't',
-                    description: 'Tenant ID или all (для scope=tenant)',
-                    required: false,
-                    default: 'all',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'email',
-                    short: 'e',
-                    description: 'Email пользователя',
-                    required: false,
-                    default: null,
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'name',
-                    short: 'n',
-                    description: 'Имя пользователя',
-                    required: false,
-                    default: 'Администратор',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'role',
-                    short: 'r',
-                    description: 'Имя роли (по умолчанию auth.roles.admin)',
-                    required: false,
-                    default: null,
-                    type: 'string',
-                ),
-            ],
-            handler: UserCreateHandler::class,
-            aliases: ['dispatcher:user:create', 'dispatcher:admin:create'],
-        ));
-
-        $registry->register(Command::define(
-            name: 'telegram:poll',
-            description: 'Запускает long-polling Telegram для core или tenant контура',
-            signature: [
-                new OptionDefinition(
-                    name: 'scope',
-                    short: null,
-                    description: 'Контур: core|tenant|all',
-                    required: false,
-                    default: 'core',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'tenant',
-                    short: null,
-                    description: 'Tenant ID или all (для scope=tenant|all)',
-                    required: false,
-                    default: 'all',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'bot',
-                    short: 'b',
-                    description: 'Имя бота из конфигурации',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'timeout',
-                    short: 't',
-                    description: 'Таймаут long polling (сек)',
-                    required: false,
-                    default: 25,
-                    type: 'int',
-                ),
-                new OptionDefinition(
-                    name: 'sleep',
-                    short: 's',
-                    description: 'Пауза между запросами (сек)',
-                    required: false,
-                    default: 1,
-                    type: 'int',
-                ),
-                new OptionDefinition(
-                    name: 'offset',
-                    short: 'o',
-                    description: 'Начальный offset',
-                    required: false,
-                    default: 0,
-                    type: 'int',
-                ),
-                new OptionDefinition(
-                    name: 'debug',
-                    short: 'd',
-                    description: 'Показывать ход выполнения',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-                new OptionDefinition(
-                    name: 'all',
-                    short: 'a',
-                    description: 'Опросить всех ботов',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-                new OptionDefinition(
-                    name: 'once',
-                    short: null,
-                    description: 'Выполнить один запрос и завершиться',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-            ],
-            handler: TelegramPollScopeHandler::class,
         ));
 
         $registry->register(Command::define(
@@ -645,80 +625,6 @@ final class TenantCommandProvider implements CommandProviderInterface
         ));
 
         $registry->register(Command::define(
-            name: 'telegram:webhook',
-            description: 'Регистрирует webhook URL для Telegram-бота (core/tenant)',
-            signature: [
-                new OptionDefinition(
-                    name: 'scope',
-                    short: null,
-                    description: 'Контур: core|tenant|all',
-                    required: false,
-                    default: 'core',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'tenant',
-                    short: null,
-                    description: 'Tenant ID или all (для scope=tenant|all)',
-                    required: false,
-                    default: 'all',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'bot',
-                    short: 'b',
-                    description: 'Имя бота из конфигурации (по умолчанию default)',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'url',
-                    short: 'u',
-                    description: 'Полный URL вебхука',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'base-url',
-                    short: null,
-                    description: 'Базовый URL, если URL не передан',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'path',
-                    short: null,
-                    description: 'Путь вебхука (по умолчанию /telegram/{bot}/webhook)',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'info',
-                    short: 'i',
-                    description: 'Показать текущую информацию о webhook',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-                new OptionDefinition(
-                    name: 'debug',
-                    short: 'd',
-                    description: 'Показывать подробности',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-            ],
-            handler: TelegramWebhookScopeHandler::class,
-        ));
-
-        $registry->register(Command::define(
             name: 'tenant:telegram:webhook',
             description: 'Регистрирует webhook URL для Telegram-ботов tenant контура',
             signature: [
@@ -790,63 +696,6 @@ final class TenantCommandProvider implements CommandProviderInterface
                 ),
             ],
             handler: TelegramWebhookScopeHandler::class,
-        ));
-
-        $registry->register(Command::define(
-            name: 'telegram:sync',
-            description: 'Обновляет команды Telegram-бота для core или tenant контура',
-            signature: [
-                new OptionDefinition(
-                    name: 'scope',
-                    short: null,
-                    description: 'Контур: core|tenant|all',
-                    required: false,
-                    default: 'core',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'tenant',
-                    short: null,
-                    description: 'Tenant ID или all (для scope=tenant|all)',
-                    required: false,
-                    default: 'all',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'bot',
-                    short: 'b',
-                    description: 'Имя бота (по умолчанию default)',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'webhook',
-                    short: 'w',
-                    description: 'Обновить webhook после sync',
-                    flag: true,
-                    required: false,
-                    default: false,
-                    type: 'bool',
-                ),
-                new OptionDefinition(
-                    name: 'base-url',
-                    short: null,
-                    description: 'Базовый URL для webhook (если --webhook)',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'path',
-                    short: null,
-                    description: 'Путь webhook (если --webhook)',
-                    required: false,
-                    default: '',
-                    type: 'string',
-                ),
-            ],
-            handler: TelegramSyncScopeHandler::class,
         ));
 
         $registry->register(Command::define(
