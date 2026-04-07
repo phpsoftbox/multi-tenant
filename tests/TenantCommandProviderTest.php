@@ -15,18 +15,17 @@ use PhpSoftBox\MultiTenant\Cli\TenantDbMigrateHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantDbProvisionHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantDbRollbackHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantListHandler;
+use PhpSoftBox\MultiTenant\Cli\TenantMongoMigrateHandler;
+use PhpSoftBox\MultiTenant\Cli\TenantMongoRollbackHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantProvisionDispatchHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantProvisionRunHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantPushrServeHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantQueueCoreRunHandler;
 use PhpSoftBox\MultiTenant\Cli\TenantQueueTenantRunHandler;
-use PhpSoftBox\MultiTenant\Cli\UserCreateHandler;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function array_map;
 
 #[CoversClass(TenantCommandProvider::class)]
 #[CoversMethod(TenantCommandProvider::class, 'register')]
@@ -47,6 +46,8 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertSame(TenantConfigCheckHandler::class, $registry->get('tenant:config:check')?->handler);
         $this->assertSame(TenantDbMigrateHandler::class, $registry->get('tenant:db:migrate')?->handler);
         $this->assertSame(TenantDbRollbackHandler::class, $registry->get('tenant:db:rollback')?->handler);
+        $this->assertSame(TenantMongoMigrateHandler::class, $registry->get('tenant:mongo:migrate')?->handler);
+        $this->assertSame(TenantMongoRollbackHandler::class, $registry->get('tenant:mongo:rollback')?->handler);
         $this->assertSame(TenantDbProvisionHandler::class, $registry->get('tenant:db:provision')?->handler);
         $this->assertSame(TenantProvisionDispatchHandler::class, $registry->get('tenant:provision:dispatch')?->handler);
         $this->assertSame(TenantProvisionRunHandler::class, $registry->get('tenant:provision:run')?->handler);
@@ -54,9 +55,6 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertSame(TenantQueueCoreRunHandler::class, $registry->get('tenant:queue:core:run')?->handler);
         $this->assertSame(TenantQueueTenantRunHandler::class, $registry->get('tenant:queue:tenant:run')?->handler);
         $this->assertSame(TenantAuthSyncHandler::class, $registry->get('tenant:auth:sync')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('tenant:user:create')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('dispatcher:user:create')?->handler);
-        $this->assertSame(UserCreateHandler::class, $registry->get('dispatcher:admin:create')?->handler);
         $this->assertSame(TelegramPollScopeHandler::class, $registry->get('telegram:poll')?->handler);
         $this->assertSame(TelegramPollScopeHandler::class, $registry->get('tenant:telegram:poll')?->handler);
         $this->assertSame(TelegramWebhookScopeHandler::class, $registry->get('telegram:webhook')?->handler);
@@ -182,32 +180,35 @@ final class TenantCommandProviderTest extends TestCase
     }
 
     /**
-     * Проверяет сигнатуру команды tenant:user:create.
+     * Проверяет сигнатуры tenant mongo migration команд.
      */
     #[Test]
-    public function testUserCreateCommandHasExpectedSignature(): void
+    public function testTenantMongoMigrationCommandsHaveExpectedOptions(): void
     {
         $registry = new InMemoryCommandRegistry(withDefaultCommands: false);
 
         new TenantCommandProvider()->register($registry);
 
-        $command = $registry->get('tenant:user:create');
-        $this->assertNotNull($command);
+        $migrate  = $registry->get('tenant:mongo:migrate');
+        $rollback = $registry->get('tenant:mongo:rollback');
 
-        $arguments = $command->signature->arguments();
-        $options   = $command->signature->options();
+        $this->assertNotNull($migrate);
+        $this->assertNotNull($rollback);
 
-        $argumentNames = array_map(static fn ($argument): string => $argument->name, $arguments);
+        $migrateOptions  = $migrate->signature->options();
+        $rollbackOptions = $rollback->signature->options();
 
-        $this->assertContains('phone', $argumentNames);
-        $this->assertContains('password', $argumentNames);
-        $this->assertArrayHasKey('scope', $options);
-        $this->assertArrayHasKey('tenant', $options);
-        $this->assertArrayHasKey('name', $options);
-        $this->assertArrayHasKey('email', $options);
-        $this->assertArrayHasKey('role', $options);
-        $this->assertSame('core', $options['scope']->default);
-        $this->assertSame('all', $options['tenant']->default);
+        $this->assertArrayHasKey('tenant', $migrateOptions);
+        $this->assertArrayHasKey('path', $migrateOptions);
+        $this->assertArrayHasKey('fail-fast', $migrateOptions);
+        $this->assertSame('all', $migrateOptions['tenant']->default);
+
+        $this->assertArrayHasKey('tenant', $rollbackOptions);
+        $this->assertArrayHasKey('path', $rollbackOptions);
+        $this->assertArrayHasKey('steps', $rollbackOptions);
+        $this->assertArrayHasKey('fail-fast', $rollbackOptions);
+        $this->assertSame('all', $rollbackOptions['tenant']->default);
+        $this->assertSame(1, $rollbackOptions['steps']->default);
     }
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace PhpSoftBox\MultiTenant\Cli;
 
-use PhpSoftBox\CliApp\Command\ArgumentDefinition;
 use PhpSoftBox\CliApp\Command\Command;
 use PhpSoftBox\CliApp\Command\CommandRegistryInterface;
 use PhpSoftBox\CliApp\Command\OptionDefinition;
@@ -130,6 +129,80 @@ final class TenantCommandProvider implements CommandProviderInterface
                 ),
             ],
             handler: TenantDbRollbackHandler::class,
+        ));
+
+        $registry->register(Command::define(
+            name: 'tenant:mongo:migrate',
+            description: 'Применить mongo-миграции tenant',
+            signature: [
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'Tenant ID или all (по умолчанию)',
+                    required: false,
+                    default: 'all',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'path',
+                    short: 'p',
+                    description: 'Относительный путь внутри базы миграций',
+                    required: false,
+                    default: null,
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'fail-fast',
+                    short: 'f',
+                    description: 'Остановиться на первой ошибке',
+                    flag: true,
+                    required: false,
+                    default: false,
+                    type: 'bool',
+                ),
+            ],
+            handler: TenantMongoMigrateHandler::class,
+        ));
+
+        $registry->register(Command::define(
+            name: 'tenant:mongo:rollback',
+            description: 'Откатить mongo-миграции tenant',
+            signature: [
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'Tenant ID или all (по умолчанию)',
+                    required: false,
+                    default: 'all',
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'path',
+                    short: 'p',
+                    description: 'Относительный путь внутри базы миграций',
+                    required: false,
+                    default: null,
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'steps',
+                    short: 's',
+                    description: 'Количество откатываемых миграций',
+                    required: false,
+                    default: 1,
+                    type: 'int',
+                ),
+                new OptionDefinition(
+                    name: 'fail-fast',
+                    short: 'f',
+                    description: 'Остановиться на первой ошибке',
+                    flag: true,
+                    required: false,
+                    default: false,
+                    type: 'bool',
+                ),
+            ],
+            handler: TenantMongoRollbackHandler::class,
         ));
 
         $registry->register(Command::define(
@@ -415,67 +488,6 @@ final class TenantCommandProvider implements CommandProviderInterface
                 ),
             ],
             handler: TenantAuthSyncHandler::class,
-        ));
-
-        $registry->register(Command::define(
-            name: 'tenant:user:create',
-            description: 'Создаёт пользователя (администратора) в core или tenant контуре',
-            signature: [
-                new ArgumentDefinition(
-                    name: 'phone',
-                    description: 'Телефон пользователя',
-                    required: true,
-                    type: 'string',
-                ),
-                new ArgumentDefinition(
-                    name: 'password',
-                    description: 'Пароль пользователя',
-                    required: true,
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'scope',
-                    short: 's',
-                    description: 'Контур создания: core|tenant',
-                    required: false,
-                    default: 'core',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'tenant',
-                    short: 't',
-                    description: 'Tenant ID или all (для scope=tenant)',
-                    required: false,
-                    default: 'all',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'email',
-                    short: 'e',
-                    description: 'Email пользователя',
-                    required: false,
-                    default: null,
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'name',
-                    short: 'n',
-                    description: 'Имя пользователя',
-                    required: false,
-                    default: 'Администратор',
-                    type: 'string',
-                ),
-                new OptionDefinition(
-                    name: 'role',
-                    short: 'r',
-                    description: 'Имя роли (по умолчанию auth.roles.admin)',
-                    required: false,
-                    default: null,
-                    type: 'string',
-                ),
-            ],
-            handler: UserCreateHandler::class,
-            aliases: ['dispatcher:user:create', 'dispatcher:admin:create'],
         ));
 
         $registry->register(Command::define(

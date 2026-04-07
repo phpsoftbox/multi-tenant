@@ -17,15 +17,24 @@
         "phpsoftbox/clock": "dev-master",
         "phpsoftbox/config": "dev-master",
         "phpsoftbox/database": "dev-master",
+        "phpsoftbox/inflector": "dev-master",
         "phpsoftbox/orm": "dev-master",
         "phpsoftbox/queue": "dev-master",
         "phpsoftbox/storage": "dev-master",
-        "phpsoftbox/telegram": "dev-master"
+        "phpsoftbox/telegram": "dev-master",
+        "psr/http-message": "^2.0",
+        "psr/http-server-handler": "^1.0",
+        "psr/http-server-middleware": "^1.0"
+    },
+    "suggest": {
+        "phpsoftbox/mongo": "Required only for tenant:mongo:* commands and MongoDB-based tenant features."
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.93",
         "phpsoftbox/cli-app": "dev-master",
         "phpsoftbox/cs-fixer": "^1.0.4",
+        "phpsoftbox/http-message": "dev-master",
+        "phpsoftbox/mongo": "dev-master",
         "phpunit/phpunit": "^11.2"
     },
     "autoload": {
@@ -38,6 +47,12 @@
             "PhpSoftBox\\MultiTenant\\Tests\\": "tests/"
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/phpsoftbox/mongodb"
+        }
+    ],
     "extra": {
         "psb": {
             "providers": [

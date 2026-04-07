@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpSoftBox\MultiTenant\Tenant\Provider;
 
 use PhpSoftBox\Config\Config;
+use PhpSoftBox\MultiTenant\Contracts\ReloadableTenantProviderInterface;
 use PhpSoftBox\MultiTenant\Contracts\TenantProviderInterface;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 
@@ -17,7 +18,7 @@ use function is_string;
 use function strtolower;
 use function trim;
 
-final class ConfigTenantProvider implements TenantProviderInterface
+final class ConfigTenantProvider implements TenantProviderInterface, ReloadableTenantProviderInterface
 {
     /** @var list<TenantDefinition>|null */
     private ?array $tenants = null;
@@ -82,6 +83,11 @@ final class ConfigTenantProvider implements TenantProviderInterface
         }
 
         return null;
+    }
+
+    public function reload(): void
+    {
+        $this->tenants = null;
     }
 
     /**

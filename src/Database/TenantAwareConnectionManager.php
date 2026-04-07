@@ -19,6 +19,7 @@ use function explode;
 use function in_array;
 use function is_array;
 use function is_string;
+use function method_exists;
 use function str_contains;
 use function str_starts_with;
 use function trim;
@@ -96,6 +97,21 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
         } catch (ConfigurationException) {
             return $this->tenantConnection($name);
         }
+    }
+
+    public function reconnect(string $name = 'default'): ConnectionInterface
+    {
+        if (!$this->shouldOverride($name)) {
+            if (method_exists($this->baseManager, 'reconnect')) {
+                return $this->baseManager->reconnect($name);
+            }
+
+            return $this->baseManager->connection($name);
+        }
+
+        $this->tenantConnections = [];
+
+        return $this->tenantConnection($name);
     }
 
     private function shouldOverride(string $name): bool

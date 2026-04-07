@@ -40,7 +40,7 @@ final readonly class TenantHostResolver
     {
         $resolved = $this->resolve($host);
         if ($resolved->isNotFound()) {
-            throw new TenantHostNotFoundException('Tenant host not found: ' . $host);
+            throw TenantHostNotFoundException::forHost($host);
         }
 
         return $resolved;
