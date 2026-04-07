@@ -45,12 +45,13 @@ final readonly class TenantTelegramBotRegistryFactory
             $code  = $item['code'];
             $token = $item['token'];
 
-            $client  = new TelegramClient(
+            $client = new TelegramClient(
                 token: $token,
                 httpClient: $this->httpClient,
                 requestFactory: $this->requestFactory,
                 streamFactory: $this->streamFactory,
             );
+
             $handler = $this->resolveHandler($code, $client, $tenant);
 
             $bots[$code] = new TelegramBot(

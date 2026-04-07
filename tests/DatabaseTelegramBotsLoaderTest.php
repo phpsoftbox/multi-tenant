@@ -7,10 +7,10 @@ namespace PhpSoftBox\MultiTenant\Tests;
 use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\MultiTenant\Context\Loader\DatabaseTelegramBotsLoader;
 use PhpSoftBox\MultiTenant\Context\TenantContext;
-use PhpSoftBox\MultiTenant\Contracts\TenantEntityManagerFactoryInterface;
 use PhpSoftBox\MultiTenant\Entity\Tenant\TelegramBot;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\Orm\Collection\EntityCollection;
+use PhpSoftBox\Orm\Contracts\ConnectionEntityManagerFactoryInterface;
 use PhpSoftBox\Orm\Contracts\EntityManagerInterface;
 use PhpSoftBox\Orm\Contracts\EntityRepositoryInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -183,7 +183,7 @@ final class DatabaseTelegramBotsLoaderTest extends TestCase
             },
         );
 
-        $factory = $this->createMock(TenantEntityManagerFactoryInterface::class);
+        $factory = $this->createMock(ConnectionEntityManagerFactoryInterface::class);
         $factory->method('create')->willReturn($entityManager);
 
         $connections = $this->createMock(ConnectionManagerInterface::class);

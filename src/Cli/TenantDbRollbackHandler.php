@@ -7,20 +7,31 @@ namespace PhpSoftBox\MultiTenant\Cli;
 use PhpSoftBox\CliApp\Command\HandlerInterface;
 use PhpSoftBox\CliApp\Response;
 use PhpSoftBox\CliApp\Runner\RunnerInterface;
+use PhpSoftBox\Inflector\Contracts\InflectorInterface;
+use PhpSoftBox\Inflector\InflectorFactory;
+use PhpSoftBox\Inflector\LanguageEnum;
+use PhpSoftBox\MultiTenant\Database\TenantDatabaseMigrationScope;
 use PhpSoftBox\MultiTenant\Database\TenantDatabaseMigrationService;
+use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\MultiTenant\Tenant\TenantSelector;
 use Throwable;
 
 use function count;
 use function is_int;
 use function is_string;
+use function sprintf;
 
 final readonly class TenantDbRollbackHandler implements HandlerInterface
 {
+    private InflectorInterface $inflector;
+
     public function __construct(
         private TenantSelector $selector,
         private TenantDatabaseMigrationService $migrations,
+        private TenantDatabaseMigrationScope $migrationScope,
+        ?InflectorInterface $inflector = null,
     ) {
+        $this->inflector = $inflector ?? InflectorFactory::create(LanguageEnum::RU);
     }
 
     public function run(RunnerInterface $runner): int|Response
@@ -65,16 +76,30 @@ final readonly class TenantDbRollbackHandler implements HandlerInterface
         $errors = 0;
         foreach ($tenants as $item) {
             $runner->io()->writeln(
-                '[tenant:' . $item->id . '] rollback, connection=' . $item->databaseConnection . ', steps=' . $steps,
+                '[tenant:' . $item->id . '] rollback, connection=' . $item->databaseConnection
+                . ', database=' . $this->databaseLabel($item)
+                . ', steps=' . $steps,
                 'info',
             );
 
             try {
-                $rolledBack = $this->migrations->rollback($item->databaseConnection, $steps, $path);
+                $rolledBack = $this->migrationScope->run(
+                    $item,
+                    fn (string $connectionName): array => $this->migrations->rollback($connectionName, $steps, $path),
+                );
+                $rolledBackCount = count($rolledBack);
                 $runner->io()->writeln(
-                    '[tenant:' . $item->id . '] откатано миграций: ' . count($rolledBack),
+                    '[tenant:' . $item->id . '] '
+                    . sprintf(
+                        'откатили %d %s.',
+                        $rolledBackCount,
+                        $this->inflector->pluralizeByCount($rolledBackCount, 'миграцию', 'миграции', 'миграций'),
+                    ),
                     'success',
                 );
+                foreach ($rolledBack as $migrationId) {
+                    $runner->io()->writeln('[tenant:' . $item->id . '] - ' . $migrationId, 'info');
+                }
             } catch (Throwable $exception) {
                 $errors++;
                 $runner->io()->writeln(
@@ -89,5 +114,10 @@ final readonly class TenantDbRollbackHandler implements HandlerInterface
         }
 
         return $errors === 0 ? Response::SUCCESS : Response::FAILURE;
+    }
+
+    private function databaseLabel(TenantDefinition $tenant): string
+    {
+        return $tenant->databaseName ?? 'resolved-dsn';
     }
 }
