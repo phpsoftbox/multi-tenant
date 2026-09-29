@@ -12,19 +12,19 @@
     "require": {
         "php": "^8.5",
         "ext-pdo": "*",
-        "phpsoftbox/auth": "dev-master",
-        "phpsoftbox/broadcaster": "dev-master",
-        "phpsoftbox/cache": "dev-master",
-        "phpsoftbox/cli-app": "dev-master",
-        "phpsoftbox/clock": "dev-master",
-        "phpsoftbox/config": "dev-master",
-        "phpsoftbox/database": "dev-master",
-        "phpsoftbox/inflector": "dev-master",
-        "phpsoftbox/orm": "dev-master",
-        "phpsoftbox/profiler": "dev-master",
-        "phpsoftbox/queue": "dev-master",
-        "phpsoftbox/storage": "dev-master",
-        "phpsoftbox/telegram": "dev-master",
+        "phpsoftbox/auth": "^1.0",
+        "phpsoftbox/broadcaster": "^1.0",
+        "phpsoftbox/cache": "^1.0",
+        "phpsoftbox/cli-app": "^1.0",
+        "phpsoftbox/clock": "^1.0",
+        "phpsoftbox/config": "^1.0",
+        "phpsoftbox/database": "^1.0",
+        "phpsoftbox/inflector": "^1.0",
+        "phpsoftbox/orm": "^1.0",
+        "phpsoftbox/profiler": "^1.0",
+        "phpsoftbox/queue": "^1.0",
+        "phpsoftbox/storage": "^1.0",
+        "phpsoftbox/telegram": "^1.0",
         "psr/container": "^2.0",
         "psr/http-client": "^1.0",
         "psr/http-factory": "^1.0",
@@ -38,9 +38,9 @@
         "phpsoftbox/mongo": "Required only for tenant:mongo:* commands and MongoDB-based tenant features."
     },
     "require-dev": {
-        "phpsoftbox/cs-fixer": "^1.2.1",
-        "phpsoftbox/http-message": "dev-master",
-        "phpsoftbox/mongo": "dev-master",
+        "phpsoftbox/cs-fixer": "^1.2.2",
+        "phpsoftbox/http-message": "^1.0",
+        "phpsoftbox/mongo": "^1.0",
         "phpunit/phpunit": "^13.3"
     },
     "autoload": {
@@ -53,12 +53,6 @@
             "PhpSoftBox\\MultiTenant\\Tests\\": "tests/"
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/phpsoftbox/mongodb"
-        }
-    ],
     "extra": {
         "psb": {
             "providers": [
@@ -66,7 +60,6 @@
             ]
         }
     },
-    "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
         "sort-packages": true
