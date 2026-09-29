@@ -223,7 +223,8 @@ return [
 - `PushrConfigSwitcher` (runtime override `pushr.app_id/pushr.secret` в `Config`)
 - `TelegramBotRegistrySwitcher` (runtime замена bot tokens в `TelegramBotRegistry`)
 - `ChannelRegistryPrefixSwitcher` (prefix для broadcaster channel patterns)
-- `CacheStoreNamespaceSwitcher` (runtime namespace для `CacheStore`)
+- `CacheStoreNamespaceSwitcher` (контекстный namespace арендатора через `Cache::setContextNamespace()`; ключи —
+  `<namespace стора>:<namespace арендатора>:<ключ>`)
 - `StoragePathPrefixSwitcher` (runtime path/prefix для `Storage` disks)
 
 `TenantDefinition::data` уже используется для fallback-переопределений (при включенных соответствующих loader/bootstrapper):
