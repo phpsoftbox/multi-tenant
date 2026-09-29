@@ -198,13 +198,13 @@ final class DatabaseTenantProviderTest extends TestCase
         string $tenantClass = Tenant::class,
         string $domainClass = Domain::class,
     ): DatabaseTenantProvider {
-        $tenantRepository = $this->createMock(EntityRepositoryInterface::class);
+        $tenantRepository = $this->createStub(EntityRepositoryInterface::class);
         $tenantRepository->method('all')->willReturn(EntityCollection::from($tenants));
 
-        $domainRepository = $this->createMock(EntityRepositoryInterface::class);
+        $domainRepository = $this->createStub(EntityRepositoryInterface::class);
         $domainRepository->method('all')->willReturn(EntityCollection::from($domains));
 
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('repository')->willReturnCallback(
             static function (string $entityClass) use ($tenantClass, $domainClass, $tenantRepository, $domainRepository) {
                 return match ($entityClass) {
@@ -215,10 +215,10 @@ final class DatabaseTenantProviderTest extends TestCase
             },
         );
 
-        $factory = $this->createMock(ConnectionEntityManagerFactoryInterface::class);
+        $factory = $this->createStub(ConnectionEntityManagerFactoryInterface::class);
         $factory->method('create')->willReturn($entityManager);
 
-        $manager = $this->createMock(ConnectionManagerInterface::class);
+        $manager = $this->createStub(ConnectionManagerInterface::class);
 
         return new DatabaseTenantProvider(
             connections: $manager,

@@ -18,7 +18,7 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function exposesRuntimeRegistryFromBaseRegistry(): void
     {
-        $runtimeRegistry = $this->createMock(EntityRuntimeRegistryInterface::class);
+        $runtimeRegistry = $this->createStub(EntityRuntimeRegistryInterface::class);
         $base            = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::once())->method('runtimeRegistry')->willReturn($runtimeRegistry);
 
@@ -30,8 +30,8 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function defaultCachesEntityManagerByReadWriteMode(): void
     {
-        $writeEntityManager = $this->createMock(EntityManagerInterface::class);
-        $readEntityManager  = $this->createMock(EntityManagerInterface::class);
+        $writeEntityManager = $this->createStub(EntityManagerInterface::class);
+        $readEntityManager  = $this->createStub(EntityManagerInterface::class);
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::exactly(2))
@@ -52,7 +52,7 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function tenantUsesConfiguredTenantConnectionName(): void
     {
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::once())->method('forConnection')->with('tenant_runtime', true)->willReturn($entityManager);
@@ -69,7 +69,7 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function forEntityUsesSameCachedManagerAsTenantConnection(): void
     {
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityClass   = EntityForTenantRegistry::class;
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
@@ -92,7 +92,7 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function emptyConnectionNameFallsBackToDefault(): void
     {
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::once())->method('default')->with(false)->willReturn($entityManager);
@@ -106,11 +106,11 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function resetClearsOnlyMatchingConnectionAndPrefixedConnections(): void
     {
-        $tenantWrite     = $this->createMock(EntityManagerInterface::class);
-        $tenantRead      = $this->createMock(EntityManagerInterface::class);
-        $analyticsWrite  = $this->createMock(EntityManagerInterface::class);
-        $tenantWriteNext = $this->createMock(EntityManagerInterface::class);
-        $tenantReadNext  = $this->createMock(EntityManagerInterface::class);
+        $tenantWrite     = $this->createStub(EntityManagerInterface::class);
+        $tenantRead      = $this->createStub(EntityManagerInterface::class);
+        $analyticsWrite  = $this->createStub(EntityManagerInterface::class);
+        $tenantWriteNext = $this->createStub(EntityManagerInterface::class);
+        $tenantReadNext  = $this->createStub(EntityManagerInterface::class);
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::exactly(5))
@@ -159,8 +159,8 @@ final class TenantEntityManagerRegistryTest extends TestCase
     #[Test]
     public function resetWithoutConnectionClearsAllCachedManagers(): void
     {
-        $first  = $this->createMock(EntityManagerInterface::class);
-        $second = $this->createMock(EntityManagerInterface::class);
+        $first  = $this->createStub(EntityManagerInterface::class);
+        $second = $this->createStub(EntityManagerInterface::class);
 
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::exactly(2))

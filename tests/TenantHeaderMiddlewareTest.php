@@ -64,7 +64,7 @@ final class TenantHeaderMiddlewareTest extends TestCase
         $store = new InMemoryTenantContextStore();
 
         $middleware = $this->middleware($store, [new TenantDefinition('42', 'Workspace', null, 'tenant')]);
-        $handler    = $this->createMock(RequestHandlerInterface::class);
+        $handler    = $this->createStub(RequestHandlerInterface::class);
         $failure    = new RuntimeException('Handler failed');
 
         $handler->method('handle')->willThrowException($failure);

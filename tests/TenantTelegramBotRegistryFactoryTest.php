@@ -188,9 +188,9 @@ final class TenantTelegramBotRegistryFactoryTest extends TestCase
                 token: 'core-' . $botCode . '-token',
                 client: new TelegramClient(
                     token: 'core-' . $botCode . '-token',
-                    httpClient: $this->createMock(ClientInterface::class),
-                    requestFactory: $this->createMock(RequestFactoryInterface::class),
-                    streamFactory: $this->createMock(StreamFactoryInterface::class),
+                    httpClient: $this->createStub(ClientInterface::class),
+                    requestFactory: $this->createStub(RequestFactoryInterface::class),
+                    streamFactory: $this->createStub(StreamFactoryInterface::class),
                 ),
                 handler: new NullUpdateHandler(),
             );
@@ -198,9 +198,9 @@ final class TenantTelegramBotRegistryFactoryTest extends TestCase
 
         return new TenantTelegramBotRegistryFactory(
             coreRegistry: new TelegramBotRegistry(defaultBot: 'main', bots: $bots),
-            httpClient: $this->createMock(ClientInterface::class),
-            requestFactory: $this->createMock(RequestFactoryInterface::class),
-            streamFactory: $this->createMock(StreamFactoryInterface::class),
+            httpClient: $this->createStub(ClientInterface::class),
+            requestFactory: $this->createStub(RequestFactoryInterface::class),
+            streamFactory: $this->createStub(StreamFactoryInterface::class),
             tokenResolver: $tokenResolver !== null ? Closure::fromCallable($tokenResolver) : null,
             handlerResolver: $handlerResolver !== null
                 ? static fn (string $code, TelegramClient $client, TenantDefinition $tenant): ?UpdateHandlerInterface => $handlerResolver()

@@ -170,10 +170,10 @@ final class DatabaseTelegramBotsLoaderTest extends TestCase
      */
     private function loader(array $bots): DatabaseTelegramBotsLoader
     {
-        $repository = $this->createMock(EntityRepositoryInterface::class);
+        $repository = $this->createStub(EntityRepositoryInterface::class);
         $repository->method('all')->willReturn(EntityCollection::from($bots));
 
-        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('repository')->willReturnCallback(
             static function (string $entityClass) use ($repository) {
                 return match ($entityClass) {
@@ -183,10 +183,10 @@ final class DatabaseTelegramBotsLoaderTest extends TestCase
             },
         );
 
-        $factory = $this->createMock(ConnectionEntityManagerFactoryInterface::class);
+        $factory = $this->createStub(ConnectionEntityManagerFactoryInterface::class);
         $factory->method('create')->willReturn($entityManager);
 
-        $connections = $this->createMock(ConnectionManagerInterface::class);
+        $connections = $this->createStub(ConnectionManagerInterface::class);
 
         return new DatabaseTelegramBotsLoader(
             connections: $connections,

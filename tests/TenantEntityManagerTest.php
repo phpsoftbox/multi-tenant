@@ -22,7 +22,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function connectionDelegatesToTenantEntityManager(): void
     {
-        $connection = $this->createMock(ConnectionInterface::class);
+        $connection = $this->createStub(ConnectionInterface::class);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
         $tenantEntityManager->expects(self::once())->method('connection')->willReturn($connection);
@@ -38,7 +38,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function persistDelegatesToTenantEntityManager(): void
     {
-        $entity = $this->createMock(EntityInterface::class);
+        $entity = $this->createStub(EntityInterface::class);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
         $tenantEntityManager->expects(self::once())->method('persist')->with($entity);
@@ -54,7 +54,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function relationScopeResolverDelegatesToTenantEntityManager(): void
     {
-        $resolver = $this->createMock(RelationScopeResolverInterface::class);
+        $resolver = $this->createStub(RelationScopeResolverInterface::class);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
         $tenantEntityManager->expects(self::once())->method('relationScopeResolver')->willReturn($resolver);
@@ -70,7 +70,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function relationLoadingDelegatesToTenantEntityManager(): void
     {
-        $entity = $this->createMock(EntityInterface::class);
+        $entity = $this->createStub(EntityInterface::class);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
         $tenantEntityManager->expects(self::once())->method('loadMissing')->with($entity, ['products']);
@@ -88,7 +88,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function managedHydrationDelegatesToTenantEntityManager(): void
     {
-        $entity     = $this->createMock(EntityInterface::class);
+        $entity     = $this->createStub(EntityInterface::class);
         $collection = new EntityCollection([$entity]);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
@@ -109,7 +109,7 @@ final class TenantEntityManagerTest extends TestCase
     #[Test]
     public function findWithDeletedDelegatesToTenantEntityManager(): void
     {
-        $entity = $this->createMock(EntityInterface::class);
+        $entity = $this->createStub(EntityInterface::class);
 
         $tenantEntityManager = $this->createMock(CurrentEntityManagerInterface::class);
         $tenantEntityManager->expects(self::once())
