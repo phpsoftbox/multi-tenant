@@ -25,8 +25,8 @@ final class TenantEntityManagerRegistryLifecycleTest extends TestCase
     #[Test]
     public function resetTenantUsesRegistryConnectionName(): void
     {
-        $first  = $this->createMock(EntityManagerInterface::class);
-        $second = $this->createMock(EntityManagerInterface::class);
+        $first  = $this->createStub(EntityManagerInterface::class);
+        $second = $this->createStub(EntityManagerInterface::class);
         $base   = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::exactly(2))
             ->method('forConnection')

@@ -14,6 +14,10 @@ use function array_values;
 use function is_string;
 use function trim;
 
+/**
+ * Namespace арендатора для кеша: задаёт контекстный namespace стора в `CacheServiceInterface`, который добавляется к
+ * namespace стора из конфигурации во всех операциях (`get`/`set`, `store()`, `pool()`, `simple()`).
+ */
 final class CacheStoreNamespaceSwitcher implements CacheNamespaceSwitcherInterface
 {
     private const string DEFAULT_STORE_KEY = '__default__';
@@ -36,10 +40,9 @@ final class CacheStoreNamespaceSwitcher implements CacheNamespaceSwitcherInterfa
         $snapshot  = [];
 
         foreach ($this->resolveStores() as $storeName) {
-            $store = $this->cache->store($storeName);
-            $key   = $storeName ?? self::DEFAULT_STORE_KEY;
+            $key = $storeName ?? self::DEFAULT_STORE_KEY;
 
-            $previous       = $store->namespace();
+            $previous       = $this->cache->contextNamespace($storeName);
             $snapshot[$key] = $previous;
 
             $next = $namespace;
@@ -49,7 +52,7 @@ final class CacheStoreNamespaceSwitcher implements CacheNamespaceSwitcherInterfa
                 $next = $previous;
             }
 
-            $store->setNamespace($next);
+            $this->cache->setContextNamespace($next, $storeName);
         }
 
         $this->stack[] = $snapshot;
@@ -64,8 +67,7 @@ final class CacheStoreNamespaceSwitcher implements CacheNamespaceSwitcherInterfa
 
         foreach ($snapshot as $storeKey => $namespace) {
             $storeName = $storeKey === self::DEFAULT_STORE_KEY ? null : $storeKey;
-            $store     = $this->cache->store($storeName);
-            $store->setNamespace($namespace);
+            $this->cache->setContextNamespace($namespace, $storeName);
         }
     }
 

@@ -26,7 +26,7 @@ final readonly class TenantProvisionDispatchHandler implements HandlerInterface
 
     public function run(RunnerInterface $runner): int|Response
     {
-        $tenant = $runner->request()->option('tenant', 'all');
+        $tenant = $runner->request()->option('tenant');
         if (!is_string($tenant) || trim($tenant) === '') {
             $runner->io()->writeln('Некорректный параметр --tenant.', 'error');
 
@@ -41,7 +41,8 @@ final readonly class TenantProvisionDispatchHandler implements HandlerInterface
         }
 
         try {
-            $tenants = $this->selector->select(trim($tenant), true);
+            // Миграции и provisioning выполняются и для отключённого арендатора: его БД готовят до включения.
+            $tenants = $this->selector->select(trim($tenant), onlyEnabled: false);
         } catch (Throwable $exception) {
             $runner->io()->writeln($exception->getMessage(), 'error');
 

@@ -15,6 +15,7 @@ use PhpSoftBox\MultiTenant\Tenant\Runtime\TenantRuntimeExecutor;
 use PhpSoftBox\MultiTenant\Tenant\TenantDefinition;
 use PhpSoftBox\MultiTenant\Tenant\TenantNotFoundException;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversMethod;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -26,6 +27,8 @@ use function array_values;
 
 #[CoversClass(TenantResolveMiddleware::class)]
 #[CoversClass(TenantNotFoundException::class)]
+#[CoversMethod(TenantResolveMiddleware::class, 'process')]
+#[CoversMethod(TenantNotFoundException::class, 'forDisabledTenant')]
 final class TenantResolveMiddlewareTest extends TestCase
 {
     /**
@@ -126,6 +129,50 @@ final class TenantResolveMiddlewareTest extends TestCase
         $this->assertSame(204, $response->getStatusCode());
         $this->assertInstanceOf(TenantDefinition::class, $state->seenTenant);
         $this->assertSame('1', $state->seenTenant?->id);
+    }
+
+    /**
+     * Проверим, что отключённый арендатор, найденный по host, не обслуживается: то же исключение, что и для
+     * неизвестного host (приложение отвечает 404), обработчик не вызывается, контекст арендатора не активируется.
+     *
+     * @see TenantResolveMiddleware::process()
+     * @see TenantNotFoundException::forDisabledTenant()
+     */
+    #[Test]
+    public function throwsWhenTenantResolvedByHostIsDisabled(): void
+    {
+        $tenant = new TenantDefinition(
+            id: '7',
+            name: 'Disabled tenant',
+            host: 'disabled.example.test',
+            databaseConnection: 'tenant',
+            enabled: false,
+        );
+
+        $store = new InMemoryTenantContextStore();
+
+        $middleware = new TenantResolveMiddleware(
+            tenants: $this->provider([$tenant]),
+            tenantRuntime: new TenantRuntimeExecutor(
+                contextFactory: new TenantContextFactory(),
+                pipeline: new TenantBootstrapPipeline(),
+                contextStore: $store,
+            ),
+        );
+
+        // Обработчик запроса не должен запускаться для отключённого арендатора.
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->never())->method('handle');
+
+        try {
+            $middleware->process(new ServerRequest('GET', 'https://disabled.example.test/dashboard'), $handler);
+            $this->fail('Ожидалось TenantNotFoundException для отключённого арендатора.');
+        } catch (TenantNotFoundException $exception) {
+            $this->assertSame('Tenant is disabled: 7', $exception->getMessage());
+            $this->assertSame('disabled.example.test', $exception->host());
+        }
+
+        $this->assertFalse($store->has());
     }
 
     /**

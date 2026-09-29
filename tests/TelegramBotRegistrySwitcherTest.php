@@ -77,9 +77,9 @@ final class TelegramBotRegistrySwitcherTest extends TestCase
 
     private function coreRegistry(): TelegramBotRegistry
     {
-        $httpClient     = $this->createMock(ClientInterface::class);
-        $requestFactory = $this->createMock(RequestFactoryInterface::class);
-        $streamFactory  = $this->createMock(StreamFactoryInterface::class);
+        $httpClient     = $this->createStub(ClientInterface::class);
+        $requestFactory = $this->createStub(RequestFactoryInterface::class);
+        $streamFactory  = $this->createStub(StreamFactoryInterface::class);
 
         return new TelegramBotRegistry('account', [
             new TelegramBot(
@@ -96,9 +96,9 @@ final class TelegramBotRegistrySwitcherTest extends TestCase
      */
     private function tenantFactory(array $allowedCodes): TenantTelegramBotRegistryFactory
     {
-        $httpClient     = $this->createMock(ClientInterface::class);
-        $requestFactory = $this->createMock(RequestFactoryInterface::class);
-        $streamFactory  = $this->createMock(StreamFactoryInterface::class);
+        $httpClient     = $this->createStub(ClientInterface::class);
+        $requestFactory = $this->createStub(RequestFactoryInterface::class);
+        $streamFactory  = $this->createStub(StreamFactoryInterface::class);
 
         $bots = [];
         foreach ($allowedCodes as $code) {

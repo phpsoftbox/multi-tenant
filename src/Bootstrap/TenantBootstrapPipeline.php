@@ -67,14 +67,20 @@ final class TenantBootstrapPipeline
                 $executed[] = $bootstrapper;
             }
         } catch (Throwable $exception) {
+            // Откатываем все применённые bootstrapper-ы, даже если откат одного из них упал: иначе состояние
+            // арендатора (подключение, namespace кеша, конфиг) останется в долгоживущем процессе.
             foreach (array_reverse($executed) as $applied) {
-                $this->profileBootstrapper(
-                    'tenant.bootstrap.rollback',
-                    static fn (): mixed => $applied->teardown($context),
-                    $context,
-                    $applied,
-                    $scope,
-                );
+                try {
+                    $this->profileBootstrapper(
+                        'tenant.bootstrap.rollback',
+                        static fn (): mixed => $applied->teardown($context),
+                        $context,
+                        $applied,
+                        $scope,
+                    );
+                } catch (Throwable) {
+                    // Исходная ошибка bootstrap важнее ошибки отката.
+                }
             }
 
             throw $exception;
@@ -91,10 +97,20 @@ final class TenantBootstrapPipeline
         $session = $this->begin($context, $scope);
 
         try {
-            return $callback($session->context());
-        } finally {
-            $session->teardown();
+            $result = $callback($session->context());
+        } catch (Throwable $exception) {
+            try {
+                $session->teardown();
+            } catch (Throwable) {
+                // Ошибка callback важнее ошибки teardown; teardown всё равно прошёл по всем bootstrapper-ам.
+            }
+
+            throw $exception;
         }
+
+        $session->teardown();
+
+        return $result;
     }
 
     public function teardownBootstrapper(

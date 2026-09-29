@@ -46,6 +46,11 @@ final class CliTestRunner implements RunnerInterface
         return $this->io;
     }
 
+    public function environment(): string
+    {
+        return 'test';
+    }
+
     public function containsMessage(string $needle): bool
     {
         foreach ($this->io->messages as $message) {

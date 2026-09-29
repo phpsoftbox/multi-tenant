@@ -36,4 +36,9 @@ final readonly class ScopedRunner implements RunnerInterface
     {
         return $this->inner->io();
     }
+
+    public function environment(): string
+    {
+        return $this->inner->environment();
+    }
 }

@@ -71,7 +71,7 @@ final class TenantOrmRuntimeLifecycleTest extends TestCase
         $base->expects(self::exactly(2))
             ->method('forConnection')
             ->willReturnCallback(function () use (&$created, $switcher): EntityManagerInterface {
-                $manager   = $this->createMock(EntityManagerInterface::class);
+                $manager   = $this->createStub(EntityManagerInterface::class);
                 $created[] = [$manager, $switcher->activeDsn()];
 
                 return $manager;
@@ -107,7 +107,7 @@ final class TenantOrmRuntimeLifecycleTest extends TestCase
         $base->expects(self::exactly(3))
             ->method('forConnection')
             ->willReturnCallback(function () use (&$created, $switcher): EntityManagerInterface {
-                $manager   = $this->createMock(EntityManagerInterface::class);
+                $manager   = $this->createStub(EntityManagerInterface::class);
                 $created[] = [$manager, $switcher->activeDsn()];
 
                 return $manager;
@@ -186,11 +186,11 @@ final class TenantOrmRuntimeLifecycleTest extends TestCase
     #[Test]
     public function tenantLifecycleDoesNotResetDefaultManager(): void
     {
-        $core = $this->createMock(EntityManagerInterface::class);
+        $core = $this->createStub(EntityManagerInterface::class);
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
         $base->expects(self::once())->method('default')->with(true)->willReturn($core);
         $base->method('forConnection')->willReturnCallback(
-            fn (): EntityManagerInterface => $this->createMock(EntityManagerInterface::class),
+            fn (): EntityManagerInterface => $this->createStub(EntityManagerInterface::class),
         );
         $switcher = new StackTenantConnectionSwitcher();
 
@@ -218,9 +218,9 @@ final class TenantOrmRuntimeLifecycleTest extends TestCase
     #[Test]
     public function nextScopeDoesNotReuseManagerWithStaleConnection(): void
     {
-        $staleManager = $this->createMock(EntityManagerInterface::class);
+        $staleManager = $this->createStub(EntityManagerInterface::class);
         $staleManager->method('connection')->willThrowException(new RuntimeException('server has gone away'));
-        $freshConnection = $this->createMock(ConnectionInterface::class);
+        $freshConnection = $this->createStub(ConnectionInterface::class);
         $freshManager    = $this->createMock(EntityManagerInterface::class);
         $freshManager->expects(self::once())->method('connection')->willReturn($freshConnection);
         $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
@@ -274,9 +274,9 @@ final class TenantOrmRuntimeLifecycleTest extends TestCase
      */
     private function baseRegistryCreatingManagers(): EntityAwareEntityManagerRegistryInterface
     {
-        $base = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
+        $base = $this->createStub(EntityAwareEntityManagerRegistryInterface::class);
         $base->method('forConnection')->willReturnCallback(
-            fn (): EntityManagerInterface => $this->createMock(EntityManagerInterface::class),
+            fn (): EntityManagerInterface => $this->createStub(EntityManagerInterface::class),
         );
 
         return $base;

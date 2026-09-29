@@ -41,6 +41,19 @@ final class TenantNotFoundException extends RuntimeException
         );
     }
 
+    /**
+     * Арендатор найден, но отключён (`enabled = false`): для HTTP это то же «не найден», сообщение — для логов.
+     */
+    public static function forDisabledTenant(string $tenantId, ?string $host = null): self
+    {
+        $host = $host !== null ? trim($host) : null;
+
+        return new self(
+            host: $host !== '' ? $host : null,
+            message: 'Tenant is disabled: ' . $tenantId,
+        );
+    }
+
     public function host(): ?string
     {
         return $this->host;

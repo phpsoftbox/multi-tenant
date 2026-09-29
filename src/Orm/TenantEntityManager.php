@@ -35,6 +35,11 @@ final readonly class TenantEntityManager implements TenantEntityManagerInterface
         return $this->em()->unitOfWork();
     }
 
+    public function clear(): void
+    {
+        $this->em()->clear();
+    }
+
     public function persist(EntityInterface $entity): void
     {
         $this->em()->persist($entity);

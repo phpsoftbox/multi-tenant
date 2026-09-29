@@ -122,7 +122,8 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertArrayHasKey('drop-existing', $options);
         $this->assertArrayHasKey('fail-fast', $options);
 
-        $this->assertSame('all', $options['tenant']->default);
+        $this->assertTrue($options['tenant']->required);
+        $this->assertNull($options['tenant']->default);
         $this->assertSame('migrations', $options['migrations-table']->default);
         $this->assertTrue($options['drop-existing']->flag);
         $this->assertTrue($options['fail-fast']->flag);
@@ -154,7 +155,8 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertArrayHasKey('owner-email', $dispatchOptions);
         $this->assertArrayHasKey('no-confirm-phone', $dispatchOptions);
         $this->assertArrayHasKey('priority', $dispatchOptions);
-        $this->assertSame('all', $dispatchOptions['tenant']->default);
+        $this->assertTrue($dispatchOptions['tenant']->required);
+        $this->assertNull($dispatchOptions['tenant']->default);
         $this->assertSame(0, $dispatchOptions['priority']->default);
 
         $this->assertArrayHasKey('tenant', $runOptions);
@@ -163,7 +165,8 @@ final class TenantCommandProviderTest extends TestCase
         $this->assertArrayHasKey('owner-name', $runOptions);
         $this->assertArrayHasKey('owner-email', $runOptions);
         $this->assertArrayHasKey('no-confirm-phone', $runOptions);
-        $this->assertSame('all', $runOptions['tenant']->default);
+        $this->assertTrue($runOptions['tenant']->required);
+        $this->assertNull($runOptions['tenant']->default);
     }
 
     /**

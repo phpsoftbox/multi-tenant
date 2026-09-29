@@ -18,7 +18,9 @@
 - `tenant:config:check [--primary=database|config] [--connection=default]`
 - `tenant:db:migrate [--tenant=all] [--path=...] [--fail-fast]`
 - `tenant:db:rollback [--tenant=all] [--path=...] [--steps=1] [--fail-fast]`
-- `tenant:db:provision [--tenant=all] [--template=<id>] [--migrations-table=migrations] [--drop-existing] [--fail-fast]`
+- `tenant:db:provision --tenant=<id>|all [--template=<id>] [--migrations-table=migrations] [--drop-existing] [--fail-fast]`
+- `tenant:provision:run --tenant=<id>|all [--template=<id>] [--owner-phone=...] [--owner-name=...] [--owner-email=...] [--no-confirm-phone]`
+- `tenant:provision:dispatch --tenant=<id>|all [--template=<id>] [--owner-*=...] [--no-confirm-phone] [--priority=0]`
 - `tenant:pushr:serve [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300]`
 - `tenant:pushr:serve:registry [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300] [--without-default-app]`
 - `tenant:queue:core:run [--max-jobs=0]`
@@ -29,6 +31,24 @@
 - `tenant:telegram:poll [--tenant=all] [--bot=<name>] [--once]` (по умолчанию `scope=tenant`)
 - `tenant:telegram:webhook [--tenant=all] [--bot=<name>] [--url=<url>]` (по умолчанию `scope=tenant`)
 - `tenant:telegram:sync [--tenant=all] [--bot=<name>] [--webhook]` (по умолчанию `scope=tenant`)
+
+У команд provisioning (`tenant:db:provision`, `tenant:provision:*`) `--tenant` обязателен: они перезаписывают
+tenant БД (при `drop_existing`/`--drop-existing` — удаляют таблицы), поэтому запуск без аргументов не должен
+затрагивать всех арендаторов. `all` передаётся явно.
+
+Отключённые арендаторы (`enabled = false`) и CLI:
+
+- миграции (`tenant:db:migrate`, `tenant:db:rollback`, `tenant:mongo:migrate`, `tenant:mongo:rollback`) и
+  provisioning (`tenant:db:provision`, `tenant:provision:run`, `tenant:provision:dispatch`, задача provisioning в
+  `tenant:queue:core:run`) работают со всеми арендаторами, включая отключённых: и при явном `--tenant=<id>`, и при
+  `--tenant=all`. Арендатора создают отключённым, готовят его БД и только потом включают; схема отключённого
+  арендатора не отстаёт от остальных. Template tenant для provisioning по-прежнему должен быть включён;
+- остальные команды (очереди, Telegram, Pushr, `tenant:auth:role:*`) обслуживают только включённых арендаторов:
+  `all` пропускает отключённых, явный `--tenant=<id>` отключённого приводит к ошибке `Tenant отключен: <id>`;
+- `tenant:list` без `--all` показывает только включённых.
+
+`tenant:queue:core:run` выполняет задачу в контексте арендатора из `tenant_id` payload. `tenant_id` должен указывать
+ровно на одного включённого арендатора: `all` и списки через запятую приводят к ошибке задачи.
 
 `tenant:db:migrate` и `tenant:db:rollback` для каждого tenant активируют runtime DSN по `database_name`/`data.database.name`/`data.database.dsn`.
 В логах команды выводят `connection=<alias>, database=<database_name>`, чтобы было видно, какая tenant БД обслуживается.
@@ -198,6 +218,10 @@ return [
 - `TenantBootstrapPipeline` принимает `iterable<TenantBootstrapperInterface>`
 - bootstrapper имеет `priority()/supports(scope)` + `bootstrap()/teardown()`
 - teardown выполняется в обратном порядке
+- teardown выполняется для всех применённых bootstrapper-ов, даже если teardown одного из них бросил исключение:
+  состояние арендатора (DSN, namespace кеша, конфиг) не остаётся в долгоживущем процессе. После обхода бросается
+  первое исключение; если упал и callback `TenantBootstrapPipeline::run()`, наружу выходит исключение callback.
+  При ошибке `bootstrap()` уже применённые bootstrapper-ы откатываются, наружу выходит исходная ошибка
 
 Четкая граница:
 - `Loader` только читает/собирает данные и кладет их в `TenantContext` (без side-effects).
@@ -223,7 +247,10 @@ return [
 - `PushrConfigSwitcher` (runtime override `pushr.app_id/pushr.secret` в `Config`)
 - `TelegramBotRegistrySwitcher` (runtime замена bot tokens в `TelegramBotRegistry`)
 - `ChannelRegistryPrefixSwitcher` (prefix для broadcaster channel patterns)
-- `CacheStoreNamespaceSwitcher` (runtime namespace для `CacheStore`)
+- `CacheStoreNamespaceSwitcher` (контекстный namespace арендатора через `Cache::setContextNamespace()`; ключи —
+  `<namespace стора>:<namespace арендатора>:<ключ>`). Без аргумента `stores` изолируется только стор по умолчанию:
+  если приложение обращается к именованным сторам (`$cache->store('redis')`), перечислите их все в `stores`,
+  иначе данные в них общие для всех арендаторов
 - `StoragePathPrefixSwitcher` (runtime path/prefix для `Storage` disks)
 
 `TenantDefinition::data` уже используется для fallback-переопределений (при включенных соответствующих loader/bootstrapper):
@@ -244,7 +271,17 @@ teardown и восстанавливает предыдущий контекст
 По умолчанию используется `HostTenantRequestResolver`: host из URI запроса
 передаётся в `TenantProviderInterface::findByHost()`. Существующие вызовы
 конструктора middleware продолжают работать. Неизвестный или пустой host
-приводит к `TenantNotFoundException`. Отдельный `TenantHostResolver` с
+приводит к `TenantNotFoundException`.
+
+Отключённый арендатор (`TenantDefinition::enabled = false`) по HTTP не обслуживается: middleware выбрасывает то же
+`TenantNotFoundException` (`TenantNotFoundException::forDisabledTenant()`, сообщение `Tenant is disabled: <id>`),
+что и для неизвестного арендатора, поэтому приложение отвечает так же (обычно 404) и не раскрывает, что арендатор
+существует. Проверка выполняется в middleware после любого resolver (host, заголовок, цепочка, собственный), обработчик
+запроса не вызывается, runtime арендатора не активируется. Если приложению нужна отдельная страница «площадка
+отключена», её нужно обслуживать вне `TenantResolveMiddleware` (например, на центральном домене через
+`TenantHostResolver`: `TenantHostResolution::shouldBootstrapTenant()` для отключённого арендатора возвращает `false`).
+
+Отдельный `TenantHostResolver` с
 `CentralDomainPolicy` служит для различения центральных и tenant-доменов;
 `TenantResolveMiddleware` предназначен для маршрутов, где tenant обязателен.
 
@@ -285,15 +322,16 @@ $resolver = new ChainTenantRequestResolver([
 приоритет, даже если домен соответствует другому tenant.
 
 - Отсутствующий заголовок позволяет перейти к следующему resolver.
-- Переданный пустой заголовок, несколько значений (в том числе через запятую)
-  или неизвестный ID вызывают `TenantNotFoundException` без перехода к домену.
+- Переданный пустой заголовок, несколько значений (в том числе через запятую),
+  неизвестный ID или ID отключённого арендатора вызывают `TenantNotFoundException`
+  без перехода к домену.
 - В режиме только заголовка его отсутствие также приводит к
   `TenantNotFoundException` в middleware; обработчик не запускается.
 
 Заголовок выбирает tenant, но не предоставляет доступ к нему. Приложение должно
 проверить право аутентифицированного пользователя или API-токена работать с
-выбранным tenant до выполнения бизнес-операции. Resolver не заменяет Auth и
-не добавляет отдельную политику проверки `TenantDefinition::enabled`.
+выбранным tenant до выполнения бизнес-операции. Resolver не заменяет Auth; отключённый
+tenant отклоняет middleware (см. выше), resolver может вернуть его как найденного.
 
 Собственный способ выбора (например, по атрибуту запроса) реализуется через
 `TenantRequestResolverInterface::resolve($request, $tenants): ?TenantDefinition`.
@@ -445,6 +483,25 @@ queue worker и обрабатывается его штатной retry/failure
 объектом при смене tenant. Его можно безопасно передать в Resource
 `OrmRelationStateProvider`: relation-state будет найден по экземпляру entity, а не
 по текущему tenant или однажды выбранному `UnitOfWork`.
+
+### Долгоживущие процессы и `ServicesResetter`
+
+Состояние арендатора (контекст, DSN, namespace кеша и storage, переопределения конфига) применяется и откатывается
+`TenantRuntimeExecutor::run()`, поэтому отдельный сброс ему не нужен. Сбрасывать между задачами/запросами нужно
+tenant EntityManager — identity map и несохранённые изменения. Компонент не зависит от `phpsoftbox/container`;
+подключите методы в карту хуков `ServicesResetter`:
+
+```php
+new ServicesResetter($container, [
+    // ...
+    TenantEntityManagerRegistryInterface::class => 'reset',
+]);
+```
+
+`reset()` очищает UnitOfWork всех закешированных manager-ов и забывает их; следующее обращение создаёт новый manager
+для активного DSN, поэтому хук безопасен и внутри `tenant:queue:tenant:run`, где сброс воркера выполняется внутри
+tenant runtime. Не добавляйте в хуки `TenantContextStoreInterface::clear()` и переключатели: в режиме
+`tenant:queue:tenant:run` это сбросило бы активного арендатора посреди обработки очереди.
 
 Router binding должен указывать на tenant-aware registry, иначе route entity будет
 загружена отдельным manager базового registry:
@@ -625,3 +682,28 @@ return [
 - копирует структуру таблиц из template tenant
 - копирует данные только из таблицы миграций (`migrations` или `--migrations-table`)
 - при непустой target БД требует явный `--drop-existing`
+
+### Команды после provisioning (`CliCommandListProvisionStep`)
+
+`tenant:provision:*` после клонирования БД выполняет команды из `tenancy.provision.commands` (или `extra.commands`
+payload). Каждая команда запускается отдельным процессом `tenancy.provision.command_runner.binary` (по умолчанию
+`php psb`) без shell:
+
+- шаблон команды разбивается на аргументы до подстановки: пробелы разделяют аргументы, `"..."` и `'...'`
+  группируют (кавычки в аргумент не попадают), `\` экранирует символ; операторы shell (`;`, `|`, `$()`, `>`)
+  не интерпретируются;
+- placeholders (`{tenant_id}`, `{tenant_connection}`, `{tenant_database}`, `{template_tenant_id}`,
+  `{template_connection}`, `{owner_phone}`, `{owner_name}`, `{owner_email}`, `{confirm_owner_phone}`) заменяются
+  внутри аргумента; значение из payload всегда остаётся частью одного аргумента, поэтому имя владельца с кавычками
+  или `$(...)` не может внедрить команду;
+- неизвестный placeholder — ошибка до запуска команды.
+
+```php
+'commands' => [
+    'tenant:auth:role:sync --scope=tenant --tenant={tenant_id}',
+    'tenant:user:create {owner_phone} --tenant={tenant_id} --name="{owner_name}" --email={owner_email}',
+],
+```
+
+Собственный запускатель реализует `TenantProvisionCommandRunnerInterface::run(list<string> $arguments)` — получает
+аргументы команды без бинарника.

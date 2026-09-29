@@ -59,6 +59,12 @@ final readonly class TenantResolveMiddleware implements MiddlewareInterface
                 throw new TenantNotFoundException();
             }
 
+            // Отключённый арендатор по HTTP не обслуживается и неотличим от неизвестного: то же исключение
+            // (приложение отвечает 404), существование арендатора не раскрывается.
+            if (!$tenant->enabled) {
+                throw TenantNotFoundException::forDisabledTenant($tenant->id, $host);
+            }
+
             $request = $request->withAttribute($this->tenantAttribute, $tenant);
 
             $this->recordProfilerEvent('tenant.resolve', $tags + [

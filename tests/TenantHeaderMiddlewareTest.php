@@ -64,7 +64,7 @@ final class TenantHeaderMiddlewareTest extends TestCase
         $store = new InMemoryTenantContextStore();
 
         $middleware = $this->middleware($store, [new TenantDefinition('42', 'Workspace', null, 'tenant')]);
-        $handler    = $this->createMock(RequestHandlerInterface::class);
+        $handler    = $this->createStub(RequestHandlerInterface::class);
         $failure    = new RuntimeException('Handler failed');
 
         $handler->method('handle')->willThrowException($failure);
@@ -175,6 +175,32 @@ final class TenantHeaderMiddlewareTest extends TestCase
         ))->willReturn(new ResponseFactory()->createResponse(204));
 
         $middleware->process(new ServerRequest('GET', 'https://workspace.example.test')->withHeader('X-Tenant-Id', 'unknown'), $handler);
+    }
+
+    /**
+     * Проверим, что отключённый арендатор, выбранный заголовком, не обслуживается: TenantNotFoundException
+     * (как для неизвестного ID), обработчик не вызывается, контекст арендатора не активируется.
+     *
+     * @see TenantResolveMiddleware::process()
+     */
+    #[Test]
+    public function disabledTenantFromHeaderIsNotServed(): void
+    {
+        $store  = new InMemoryTenantContextStore();
+        $tenant = new TenantDefinition('42', 'Workspace', null, 'tenant', enabled: false);
+
+        $middleware = $this->middleware($store, [$tenant]);
+        $handler    = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects(self::never())->method('handle');
+
+        $this->expectException(TenantNotFoundException::class);
+        $this->expectExceptionMessage('Tenant is disabled: 42');
+
+        try {
+            $middleware->process(new ServerRequest('GET', '/')->withHeader('X-Tenant-Id', '42'), $handler);
+        } finally {
+            self::assertFalse($store->has());
+        }
     }
 
     /** @param list<TenantDefinition> $tenants */

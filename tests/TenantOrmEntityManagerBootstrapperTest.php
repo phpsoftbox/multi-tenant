@@ -31,7 +31,7 @@ final class TenantOrmEntityManagerBootstrapperTest extends TestCase
     public function supportsEveryRuntimeScope(): void
     {
         $bootstrapper = new TenantOrmEntityManagerBootstrapper(
-            $this->createMock(TenantEntityManagerRegistryInterface::class),
+            $this->createStub(TenantEntityManagerRegistryInterface::class),
         );
 
         foreach (TenantRuntimeScope::cases() as $scope) {
@@ -48,7 +48,7 @@ final class TenantOrmEntityManagerBootstrapperTest extends TestCase
     public function hasPriorityImmediatelyBelowDatabaseBootstrapper(): void
     {
         $bootstrapper = new TenantOrmEntityManagerBootstrapper(
-            $this->createMock(TenantEntityManagerRegistryInterface::class),
+            $this->createStub(TenantEntityManagerRegistryInterface::class),
         );
 
         self::assertSame(950, $bootstrapper->priority());
