@@ -11,9 +11,11 @@
     ],
     "require": {
         "php": "^8.5",
+        "ext-pdo": "*",
         "phpsoftbox/auth": "dev-master",
         "phpsoftbox/broadcaster": "dev-master",
         "phpsoftbox/cache": "dev-master",
+        "phpsoftbox/cli-app": "dev-master",
         "phpsoftbox/clock": "dev-master",
         "phpsoftbox/config": "dev-master",
         "phpsoftbox/database": "dev-master",
@@ -23,15 +25,19 @@
         "phpsoftbox/queue": "dev-master",
         "phpsoftbox/storage": "dev-master",
         "phpsoftbox/telegram": "dev-master",
+        "psr/container": "^2.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
         "psr/http-message": "^2.0",
         "psr/http-server-handler": "^1.0",
-        "psr/http-server-middleware": "^1.0"
+        "psr/http-server-middleware": "^1.0",
+        "psr/log": "^3.0",
+        "ramsey/uuid": "^4.7"
     },
     "suggest": {
         "phpsoftbox/mongo": "Required only for tenant:mongo:* commands and MongoDB-based tenant features."
     },
     "require-dev": {
-        "phpsoftbox/cli-app": "dev-master",
         "phpsoftbox/cs-fixer": "^1.2.1",
         "phpsoftbox/http-message": "dev-master",
         "phpsoftbox/mongo": "dev-master",
