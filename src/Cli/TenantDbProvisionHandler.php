@@ -26,7 +26,7 @@ final readonly class TenantDbProvisionHandler implements HandlerInterface
 
     public function run(RunnerInterface $runner): int|Response
     {
-        $tenant = $runner->request()->option('tenant', 'all');
+        $tenant = $runner->request()->option('tenant');
         if (!is_string($tenant) || $tenant === '') {
             $runner->io()->writeln('Некорректный параметр --tenant.', 'error');
 

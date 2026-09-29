@@ -7,6 +7,7 @@ namespace PhpSoftBox\MultiTenant\Bootstrap;
 use PhpSoftBox\MultiTenant\Context\TenantContext;
 use PhpSoftBox\MultiTenant\Context\TenantRuntimeScope;
 use PhpSoftBox\MultiTenant\Contracts\TenantBootstrapperInterface;
+use Throwable;
 
 use function array_reverse;
 
@@ -37,15 +38,24 @@ final class TenantBootstrapSession
         }
 
         $this->closed = true;
+        $first        = null;
 
+        // Ошибка teardown одного bootstrapper-а не должна оставлять остальные в состоянии арендатора:
+        // откатываем все, затем бросаем первое исключение.
         foreach (array_reverse($this->bootstrappers) as $bootstrapper) {
-            if ($this->pipeline !== null) {
-                $this->pipeline->teardownBootstrapper($this->context, $bootstrapper, $this->scope);
-
-                continue;
+            try {
+                if ($this->pipeline !== null) {
+                    $this->pipeline->teardownBootstrapper($this->context, $bootstrapper, $this->scope);
+                } else {
+                    $bootstrapper->teardown($this->context);
+                }
+            } catch (Throwable $exception) {
+                $first ??= $exception;
             }
+        }
 
-            $bootstrapper->teardown($this->context);
+        if ($first !== null) {
+            throw $first;
         }
     }
 }

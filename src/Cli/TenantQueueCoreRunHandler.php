@@ -19,6 +19,7 @@ use RuntimeException;
 use Throwable;
 
 use function array_key_exists;
+use function count;
 use function is_array;
 use function is_int;
 use function is_string;
@@ -94,8 +95,10 @@ final readonly class TenantQueueCoreRunHandler implements HandlerInterface
             throw new RuntimeException('Core queue payload должен содержать tenant_id.');
         }
 
+        // tenant_id задачи — ровно один арендатор: `all` и списки через запятую селектор раскрыл бы в нескольких
+        // арендаторов, и задача выполнилась бы в контексте первого из них.
         $selected = $this->selector->select($tenantId, true);
-        if ($selected === []) {
+        if (count($selected) !== 1 || $selected[0]->id !== $tenantId) {
             throw new RuntimeException('Tenant не найден для queue payload: ' . $tenantId);
         }
 

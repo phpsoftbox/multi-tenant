@@ -8,7 +8,11 @@ use PhpSoftBox\Config\Config;
 use PhpSoftBox\MultiTenant\Contracts\TenantProvisionCommandRunnerInterface;
 use RuntimeException;
 
+use function array_map;
+use function array_merge;
+use function escapeshellarg;
 use function fclose;
+use function implode;
 use function is_resource;
 use function is_string;
 use function proc_close;
@@ -18,6 +22,10 @@ use function trim;
 
 use const PHP_EOL;
 
+/**
+ * Запускает команды provisioning отдельным процессом: `tenancy.provision.command_runner.binary` (по умолчанию
+ * `php psb`) + аргументы команды. Процесс запускается без shell (`proc_open` со списком аргументов).
+ */
 final readonly class ShellTenantProvisionCommandRunner implements TenantProvisionCommandRunnerInterface
 {
     public function __construct(
@@ -25,10 +33,9 @@ final readonly class ShellTenantProvisionCommandRunner implements TenantProvisio
     ) {
     }
 
-    public function run(string $command): void
+    public function run(array $arguments): void
     {
-        $command = trim($command);
-        if ($command === '') {
+        if ($arguments === []) {
             return;
         }
 
@@ -42,27 +49,25 @@ final readonly class ShellTenantProvisionCommandRunner implements TenantProvisio
             $workingDirectory = null;
         }
 
-        $shellCommand = trim($binary) . ' ' . $command;
-        $descriptors  = [
+        $command     = array_merge(CommandLineSplitter::split($binary), $arguments);
+        $commandLine = implode(' ', array_map(escapeshellarg(...), $command));
+        $descriptors = [
             1 => ['pipe', 'w'],
-            2 => ['pipe', 'w'],
+            2 => ['redirect', 1],
         ];
 
-        $process = proc_open($shellCommand, $descriptors, $pipes, $workingDirectory);
+        $process = proc_open($command, $descriptors, $pipes, $workingDirectory);
         if (!is_resource($process)) {
-            throw new RuntimeException('Не удалось запустить команду provision: ' . $shellCommand);
+            throw new RuntimeException('Не удалось запустить команду provision: ' . $commandLine);
         }
 
-        $stdout = (string) stream_get_contents($pipes[1]);
-        $stderr = (string) stream_get_contents($pipes[2]);
-
+        $output = (string) stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        fclose($pipes[2]);
 
         $exitCode = proc_close($process);
         if ($exitCode !== 0) {
-            $output  = trim($stderr !== '' ? $stderr : $stdout);
-            $message = 'Provision command failed (' . $exitCode . '): ' . $shellCommand;
+            $message = 'Provision command failed (' . $exitCode . '): ' . $commandLine;
+            $output  = trim($output);
             if ($output !== '') {
                 $message .= PHP_EOL . $output;
             }

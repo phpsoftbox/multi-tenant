@@ -214,9 +214,9 @@ final class TenantCommandProvider implements CommandProviderInterface
                 new OptionDefinition(
                     name: 'tenant',
                     short: 't',
-                    description: 'Tenant ID или all (по умолчанию)',
-                    required: false,
-                    default: 'all',
+                    description: 'Tenant ID, список через запятую или all (обязательно: команда перезаписывает БД)',
+                    required: true,
+                    default: null,
                     type: 'string',
                 ),
                 new OptionDefinition(
@@ -264,9 +264,9 @@ final class TenantCommandProvider implements CommandProviderInterface
                 new OptionDefinition(
                     name: 'tenant',
                     short: 't',
-                    description: 'Tenant ID или all (по умолчанию)',
-                    required: false,
-                    default: 'all',
+                    description: 'Tenant ID, список через запятую или all (обязательно: команда перезаписывает БД)',
+                    required: true,
+                    default: null,
                     type: 'string',
                 ),
                 new OptionDefinition(
@@ -329,9 +329,9 @@ final class TenantCommandProvider implements CommandProviderInterface
                 new OptionDefinition(
                     name: 'tenant',
                     short: 't',
-                    description: 'Tenant ID или all (по умолчанию)',
-                    required: false,
-                    default: 'all',
+                    description: 'Tenant ID, список через запятую или all (обязательно: команда перезаписывает БД)',
+                    required: true,
+                    default: null,
                     type: 'string',
                 ),
                 new OptionDefinition(
