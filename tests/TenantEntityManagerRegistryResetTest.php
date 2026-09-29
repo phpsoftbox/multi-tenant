@@ -67,7 +67,7 @@ final class TenantEntityManagerRegistryResetTest extends TestCase
         $tenantReadUnitOfWork  = $this->unitOfWorkExpectingClear();
         $analyticsUnitOfWork   = $this->unitOfWorkExpectingNoClear();
         $defaultUnitOfWork     = $this->unitOfWorkExpectingNoClear();
-        $baseRegistry          = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
+        $baseRegistry          = $this->createStub(EntityAwareEntityManagerRegistryInterface::class);
         $baseRegistry->method('forConnection')->willReturnCallback(
             fn (string $connection, bool $write): EntityManagerInterface => match ([$connection, $write]) {
                 ['tenant', true]       => $this->manager($tenantWriteUnitOfWork),
@@ -96,7 +96,7 @@ final class TenantEntityManagerRegistryResetTest extends TestCase
     {
         $tenantUnitOfWork  = $this->unitOfWorkExpectingClear();
         $defaultUnitOfWork = $this->unitOfWorkExpectingClear();
-        $baseRegistry      = $this->createMock(EntityAwareEntityManagerRegistryInterface::class);
+        $baseRegistry      = $this->createStub(EntityAwareEntityManagerRegistryInterface::class);
         $baseRegistry->method('forConnection')->willReturn($this->manager($tenantUnitOfWork));
         $baseRegistry->method('default')->willReturn($this->manager($defaultUnitOfWork));
         $registry = new TenantEntityManagerRegistry($baseRegistry);
@@ -109,7 +109,7 @@ final class TenantEntityManagerRegistryResetTest extends TestCase
 
     private function manager(UnitOfWorkInterface $unitOfWork): EntityManagerInterface
     {
-        $manager = $this->createMock(EntityManagerInterface::class);
+        $manager = $this->createStub(EntityManagerInterface::class);
         $manager->method('unitOfWork')->willReturn($unitOfWork);
 
         return $manager;

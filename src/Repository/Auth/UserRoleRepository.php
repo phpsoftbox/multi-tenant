@@ -19,8 +19,13 @@ final readonly class UserRoleRepository
     {
         $table = 'user_roles';
 
-        $sql = 'SELECT user_id FROM ' . $this->connection->table($table)
-            . ' WHERE user_id = :user_id AND role_id = :role_id LIMIT 1';
+        $sql = '
+            SELECT user_id
+            FROM ' . $this->connection->table($table) . '
+            WHERE user_id = :user_id
+                AND role_id = :role_id
+            LIMIT 1
+        ';
 
         $existing = $this->connection->fetchOne($sql, [
             'user_id' => $userId,

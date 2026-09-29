@@ -23,7 +23,7 @@ final class ChannelRegistryPrefixSwitcherTest extends TestCase
 
         $registry->channel('private.user.{userId}', static fn (string $userId): bool => $userId === '42');
 
-        $request  = $this->createMock(ServerRequestInterface::class);
+        $request  = $this->createStub(ServerRequestInterface::class);
         $context  = $this->context();
         $switcher = new ChannelRegistryPrefixSwitcher($registry);
 

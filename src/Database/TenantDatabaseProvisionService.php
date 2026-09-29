@@ -238,11 +238,10 @@ final readonly class TenantDatabaseProvisionService
         $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
         $placeholders  = array_fill(0, count($columns), '?');
 
-        $sql = 'INSERT INTO '
-            . $this->quoteIdentifier($table)
-            . ' (' . implode(', ', $quotedColumns) . ') VALUES ('
-            . implode(', ', $placeholders)
-            . ')';
+        $sql = '
+            INSERT INTO ' . $this->quoteIdentifier($table) . ' (' . implode(', ', $quotedColumns) . ')
+            VALUES (' . implode(', ', $placeholders) . ')
+        ';
 
         foreach ($rows as $row) {
             $params = [];

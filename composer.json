@@ -31,12 +31,11 @@
         "phpsoftbox/mongo": "Required only for tenant:mongo:* commands and MongoDB-based tenant features."
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.93",
         "phpsoftbox/cli-app": "dev-master",
-        "phpsoftbox/cs-fixer": "^1.0.4",
+        "phpsoftbox/cs-fixer": "^1.2.1",
         "phpsoftbox/http-message": "dev-master",
         "phpsoftbox/mongo": "dev-master",
-        "phpunit/phpunit": "^11.2"
+        "phpunit/phpunit": "^13.3"
     },
     "autoload": {
         "psr-4": {

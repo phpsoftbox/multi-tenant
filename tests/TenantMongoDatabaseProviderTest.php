@@ -29,7 +29,7 @@ final class TenantMongoDatabaseProviderTest extends TestCase
     {
         $this->requireMongoExtension();
 
-        $collection = $this->createMock(Collection::class);
+        $collection = $this->createStub(Collection::class);
         $database   = $this->createMock(Database::class);
         $client     = $this->createMock(Client::class);
         $mongo      = $this->createMock(MongoConnectionManagerInterface::class);
@@ -86,7 +86,7 @@ final class TenantMongoDatabaseProviderTest extends TestCase
     {
         $this->requireMongoExtension();
 
-        $database = $this->createMock(Database::class);
+        $database = $this->createStub(Database::class);
         $client   = $this->createMock(Client::class);
         $mongo    = $this->createMock(MongoConnectionManagerInterface::class);
 
@@ -132,7 +132,7 @@ final class TenantMongoDatabaseProviderTest extends TestCase
     {
         $this->requireMongoExtension();
 
-        $mongo = $this->createMock(MongoConnectionManagerInterface::class);
+        $mongo = $this->createStub(MongoConnectionManagerInterface::class);
         $store = new InMemoryTenantContextStore();
 
         $store->set(new TenantContext(new TenantDefinition(

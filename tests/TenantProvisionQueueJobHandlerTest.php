@@ -20,7 +20,7 @@ final class TenantProvisionQueueJobHandlerTest extends TestCase
     #[Test]
     public function testSupportsRecognizesProvisionPayload(): void
     {
-        $runner  = $this->createMock(TenantProvisionRunnerInterface::class);
+        $runner  = $this->createStub(TenantProvisionRunnerInterface::class);
         $handler = new TenantProvisionQueueJobHandler($runner);
 
         $this->assertTrue($handler->supports([
@@ -64,7 +64,7 @@ final class TenantProvisionQueueJobHandlerTest extends TestCase
     #[Test]
     public function testHandleRejectsNonArrayPayload(): void
     {
-        $runner  = $this->createMock(TenantProvisionRunnerInterface::class);
+        $runner  = $this->createStub(TenantProvisionRunnerInterface::class);
         $handler = new TenantProvisionQueueJobHandler($runner);
 
         $this->expectException(InvalidArgumentException::class);
@@ -76,7 +76,7 @@ final class TenantProvisionQueueJobHandlerTest extends TestCase
     #[Test]
     public function testHandleRejectsPayloadWithoutTenantProvisionBlock(): void
     {
-        $runner  = $this->createMock(TenantProvisionRunnerInterface::class);
+        $runner  = $this->createStub(TenantProvisionRunnerInterface::class);
         $handler = new TenantProvisionQueueJobHandler($runner);
 
         $this->expectException(InvalidArgumentException::class);
