@@ -36,6 +36,17 @@
 tenant БД (при `drop_existing`/`--drop-existing` — удаляют таблицы), поэтому запуск без аргументов не должен
 затрагивать всех арендаторов. `all` передаётся явно.
 
+Отключённые арендаторы (`enabled = false`) и CLI:
+
+- миграции (`tenant:db:migrate`, `tenant:db:rollback`, `tenant:mongo:migrate`, `tenant:mongo:rollback`) и
+  provisioning (`tenant:db:provision`, `tenant:provision:run`, `tenant:provision:dispatch`, задача provisioning в
+  `tenant:queue:core:run`) работают со всеми арендаторами, включая отключённых: и при явном `--tenant=<id>`, и при
+  `--tenant=all`. Арендатора создают отключённым, готовят его БД и только потом включают; схема отключённого
+  арендатора не отстаёт от остальных. Template tenant для provisioning по-прежнему должен быть включён;
+- остальные команды (очереди, Telegram, Pushr, `tenant:auth:role:*`) обслуживают только включённых арендаторов:
+  `all` пропускает отключённых, явный `--tenant=<id>` отключённого приводит к ошибке `Tenant отключен: <id>`;
+- `tenant:list` без `--all` показывает только включённых.
+
 `tenant:queue:core:run` выполняет задачу в контексте арендатора из `tenant_id` payload. `tenant_id` должен указывать
 ровно на одного включённого арендатора: `all` и списки через запятую приводят к ошибке задачи.
 
@@ -260,7 +271,17 @@ teardown и восстанавливает предыдущий контекст
 По умолчанию используется `HostTenantRequestResolver`: host из URI запроса
 передаётся в `TenantProviderInterface::findByHost()`. Существующие вызовы
 конструктора middleware продолжают работать. Неизвестный или пустой host
-приводит к `TenantNotFoundException`. Отдельный `TenantHostResolver` с
+приводит к `TenantNotFoundException`.
+
+Отключённый арендатор (`TenantDefinition::enabled = false`) по HTTP не обслуживается: middleware выбрасывает то же
+`TenantNotFoundException` (`TenantNotFoundException::forDisabledTenant()`, сообщение `Tenant is disabled: <id>`),
+что и для неизвестного арендатора, поэтому приложение отвечает так же (обычно 404) и не раскрывает, что арендатор
+существует. Проверка выполняется в middleware после любого resolver (host, заголовок, цепочка, собственный), обработчик
+запроса не вызывается, runtime арендатора не активируется. Если приложению нужна отдельная страница «площадка
+отключена», её нужно обслуживать вне `TenantResolveMiddleware` (например, на центральном домене через
+`TenantHostResolver`: `TenantHostResolution::shouldBootstrapTenant()` для отключённого арендатора возвращает `false`).
+
+Отдельный `TenantHostResolver` с
 `CentralDomainPolicy` служит для различения центральных и tenant-доменов;
 `TenantResolveMiddleware` предназначен для маршрутов, где tenant обязателен.
 
@@ -301,15 +322,16 @@ $resolver = new ChainTenantRequestResolver([
 приоритет, даже если домен соответствует другому tenant.
 
 - Отсутствующий заголовок позволяет перейти к следующему resolver.
-- Переданный пустой заголовок, несколько значений (в том числе через запятую)
-  или неизвестный ID вызывают `TenantNotFoundException` без перехода к домену.
+- Переданный пустой заголовок, несколько значений (в том числе через запятую),
+  неизвестный ID или ID отключённого арендатора вызывают `TenantNotFoundException`
+  без перехода к домену.
 - В режиме только заголовка его отсутствие также приводит к
   `TenantNotFoundException` в middleware; обработчик не запускается.
 
 Заголовок выбирает tenant, но не предоставляет доступ к нему. Приложение должно
 проверить право аутентифицированного пользователя или API-токена работать с
-выбранным tenant до выполнения бизнес-операции. Resolver не заменяет Auth и
-не добавляет отдельную политику проверки `TenantDefinition::enabled`.
+выбранным tenant до выполнения бизнес-операции. Resolver не заменяет Auth; отключённый
+tenant отклоняет middleware (см. выше), resolver может вернуть его как найденного.
 
 Собственный способ выбора (например, по атрибуту запроса) реализуется через
 `TenantRequestResolverInterface::resolve($request, $tenants): ?TenantDefinition`.

@@ -64,7 +64,8 @@ final readonly class TenantDbProvisionHandler implements HandlerInterface
         $failFast     = $runner->request()->option('fail-fast', false) === true;
 
         try {
-            $targets       = $this->selector->select($tenant, true);
+            // Миграции и provisioning выполняются и для отключённого арендатора: его БД готовят до включения.
+            $targets       = $this->selector->select($tenant, onlyEnabled: false);
             $templateItems = $this->selector->select($template, false);
         } catch (Throwable $exception) {
             $runner->io()->writeln($exception->getMessage(), 'error');

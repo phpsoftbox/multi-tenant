@@ -33,7 +33,8 @@ final readonly class TenantProvisionRunHandler implements HandlerInterface
         }
 
         try {
-            $tenants = $this->selector->select(trim($tenant), true);
+            // Миграции и provisioning выполняются и для отключённого арендатора: его БД готовят до включения.
+            $tenants = $this->selector->select(trim($tenant), onlyEnabled: false);
         } catch (Throwable $exception) {
             $runner->io()->writeln($exception->getMessage(), 'error');
 

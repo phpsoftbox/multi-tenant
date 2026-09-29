@@ -25,7 +25,8 @@ final readonly class TenantProvisionRunner implements TenantProvisionRunnerInter
 
     public function run(TenantProvisionPayload $payload): TenantProvisionContext
     {
-        $target = $this->resolveSingleTenant($payload->tenantId, true, 'target');
+        // Миграции и provisioning выполняются и для отключённого арендатора: его БД готовят до включения.
+        $target = $this->resolveSingleTenant($payload->tenantId, false, 'target');
 
         $templateId = $payload->templateTenantId;
         if (!is_string($templateId) || trim($templateId) === '') {

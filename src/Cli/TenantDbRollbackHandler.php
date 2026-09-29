@@ -60,7 +60,8 @@ final readonly class TenantDbRollbackHandler implements HandlerInterface
         $failFast = $runner->request()->option('fail-fast', false) === true;
 
         try {
-            $tenants = $this->selector->select($tenant, true);
+            // Миграции и provisioning выполняются и для отключённого арендатора: его БД готовят до включения.
+            $tenants = $this->selector->select($tenant, onlyEnabled: false);
         } catch (Throwable $exception) {
             $runner->io()->writeln($exception->getMessage(), 'error');
 
