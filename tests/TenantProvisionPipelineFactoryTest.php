@@ -29,8 +29,7 @@ final class TenantProvisionPipelineFactoryTest extends TestCase
 
         $stepA = new class ($log) implements TenantProvisionStepInterface {
             public function __construct(
-                private ArrayObject
-            $log,
+                private ArrayObject $log,
             ) {
             }
 
@@ -52,8 +51,7 @@ final class TenantProvisionPipelineFactoryTest extends TestCase
 
         $stepB = new class ($log) implements TenantProvisionStepInterface {
             public function __construct(
-                private ArrayObject
-            $log,
+                private ArrayObject $log,
             ) {
             }
 
@@ -150,8 +148,7 @@ final class TenantProvisionPipelineFactoryTest extends TestCase
              * @param array<string, object> $services
              */
             public function __construct(
-                private array
-            $services,
+                private array $services,
             ) {
             }
 
