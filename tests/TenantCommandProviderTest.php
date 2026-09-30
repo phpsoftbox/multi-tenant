@@ -101,6 +101,26 @@ final class TenantCommandProviderTest extends TestCase
     }
 
     /**
+     * Проверим, что обе команды запуска Pushr принимают параметры keepalive сервера.
+     *
+     * @see TenantCommandProvider::register()
+     */
+    #[Test]
+    public function tenantPushrServeCommandsHaveKeepaliveOptions(): void
+    {
+        $registry = new InMemoryCommandRegistry(withDefaultCommands: false);
+
+        new TenantCommandProvider()->register($registry);
+
+        foreach (['tenant:pushr:serve', 'tenant:pushr:serve:registry'] as $name) {
+            $options = $registry->get($name)?->signature->options() ?? [];
+
+            $this->assertSame(25, $options['ping-interval']->default ?? null, $name);
+            $this->assertSame(60, $options['idle-timeout']->default ?? null, $name);
+        }
+    }
+
+    /**
      * Проверяет сигнатуру команды tenant:db:provision.
      */
     #[Test]
