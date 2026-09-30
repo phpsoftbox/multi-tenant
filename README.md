@@ -21,8 +21,11 @@
 - `tenant:db:provision --tenant=<id>|all [--template=<id>] [--migrations-table=migrations] [--drop-existing] [--fail-fast]`
 - `tenant:provision:run --tenant=<id>|all [--template=<id>] [--owner-phone=...] [--owner-name=...] [--owner-email=...] [--no-confirm-phone]`
 - `tenant:provision:dispatch --tenant=<id>|all [--template=<id>] [--owner-*=...] [--no-confirm-phone] [--priority=0]`
-- `tenant:pushr:serve [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300]`
-- `tenant:pushr:serve:registry [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300] [--without-default-app]`
+- `tenant:pushr:serve [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300] [--ping-interval=25] [--idle-timeout=60]`
+- `tenant:pushr:serve:registry [--tenant=all] [--host=0.0.0.0] [--port=8080] [--max-skew=300] [--ping-interval=25] [--idle-timeout=60] [--without-default-app]`
+
+  Keepalive сервера (`phpsoftbox/broadcaster` `^1.1`): ping простаивающим соединениям через `--ping-interval`
+  секунд, закрытие молчащих дольше `--idle-timeout`; `0` отключает проверку, `--idle-timeout` больше `--ping-interval`.
 - `tenant:queue:core:run [--max-jobs=0]`
 - `tenant:queue:tenant:run [--tenant=all] [--max-jobs=0]`
 - `tenant:auth:role:sync [--scope=all|core|tenant] [--tenant=all] [--dry-run]`

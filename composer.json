@@ -13,7 +13,7 @@
         "php": "^8.5",
         "ext-pdo": "*",
         "phpsoftbox/auth": "^1.0",
-        "phpsoftbox/broadcaster": "^1.0",
+        "phpsoftbox/broadcaster": "^1.1",
         "phpsoftbox/cache": "^1.0",
         "phpsoftbox/cli-app": "^1.0",
         "phpsoftbox/clock": "^1.0",

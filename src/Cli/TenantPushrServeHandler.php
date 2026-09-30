@@ -58,6 +58,26 @@ final readonly class TenantPushrServeHandler implements HandlerInterface
             return Response::FAILURE;
         }
 
+        $pingInterval = $runner->request()->option('ping-interval', 25);
+        if (!is_int($pingInterval) || $pingInterval < 0) {
+            $runner->io()->writeln('Некорректный параметр --ping-interval.', 'error');
+
+            return Response::FAILURE;
+        }
+
+        $idleTimeout = $runner->request()->option('idle-timeout', 60);
+        if (!is_int($idleTimeout) || $idleTimeout < 0) {
+            $runner->io()->writeln('Некорректный параметр --idle-timeout.', 'error');
+
+            return Response::FAILURE;
+        }
+
+        if ($pingInterval > 0 && $idleTimeout > 0 && $idleTimeout <= $pingInterval) {
+            $runner->io()->writeln('Параметр --idle-timeout должен быть больше --ping-interval.', 'error');
+
+            return Response::FAILURE;
+        }
+
         try {
             $apps = $this->source->apps(['tenant' => $tenant]);
             if ($apps === []) {
@@ -76,7 +96,14 @@ final readonly class TenantPushrServeHandler implements HandlerInterface
             'success',
         );
 
-        $server = new PushrServer($registry, $host, $port, $maxSkew);
+        $server = new PushrServer(
+            $registry,
+            $host,
+            $port,
+            $maxSkew,
+            pingInterval: $pingInterval,
+            idleTimeout: $idleTimeout,
+        );
 
         $server->run();
 
