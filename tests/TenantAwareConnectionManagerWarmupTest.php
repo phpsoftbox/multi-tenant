@@ -8,6 +8,7 @@ use PDO;
 use PhpSoftBox\Config\Config;
 use PhpSoftBox\Database\Configurator\DatabaseFactory;
 use PhpSoftBox\Database\Connection\ConnectionManager;
+use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\Database\Connection\WarmupAwareConnectionManagerInterface;
 use PhpSoftBox\Database\Contracts\WarmupAwareConnectionInterface;
 use PhpSoftBox\DatabaseLookup\LookupSpec;
@@ -84,5 +85,22 @@ final class TenantAwareConnectionManagerWarmupTest extends TestCase
         } finally {
             unlink($file);
         }
+    }
+
+    /**
+     * Проверим, что пользовательский базовый менеджер без сброса кэша по-прежнему принимается конструктором.
+     *
+     * @see TenantAwareConnectionManager::__construct()
+     * @see TenantAwareConnectionManager::clearWarmup()
+     */
+    #[Test]
+    public function acceptsBaseManagerWithoutWarmupReset(): void
+    {
+        $baseManager = $this->createStub(ConnectionManagerInterface::class);
+        $manager     = new TenantAwareConnectionManager($baseManager, new Config([]));
+
+        $manager->clearWarmup();
+
+        self::assertInstanceOf(WarmupAwareConnectionManagerInterface::class, $manager);
     }
 }

@@ -6,6 +6,7 @@ namespace PhpSoftBox\MultiTenant\Database;
 
 use PhpSoftBox\Config\Config;
 use PhpSoftBox\Database\Configurator\DatabaseFactory;
+use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
 use PhpSoftBox\Database\Connection\WarmupAwareConnectionManagerInterface;
 use PhpSoftBox\Database\Contracts\ConnectionInterface;
 use PhpSoftBox\Database\Contracts\WarmupAwareConnectionInterface;
@@ -43,7 +44,7 @@ final class TenantAwareConnectionManager implements WarmupAwareConnectionManager
     private array $tenantConnections = [];
 
     public function __construct(
-        private readonly WarmupAwareConnectionManagerInterface $baseManager,
+        private readonly ConnectionManagerInterface $baseManager,
         private readonly Config $config,
         private readonly string $tenantConnectionAlias = 'tenant',
         private readonly ?ProfilerInterface $profiler = null,
@@ -141,7 +142,9 @@ final class TenantAwareConnectionManager implements WarmupAwareConnectionManager
 
     public function clearWarmup(): void
     {
-        $this->baseManager->clearWarmup();
+        if ($this->baseManager instanceof WarmupAwareConnectionManagerInterface) {
+            $this->baseManager->clearWarmup();
+        }
 
         foreach ($this->tenantConnections as $connection) {
             if ($connection instanceof WarmupAwareConnectionInterface) {
