@@ -18,7 +18,7 @@
         "phpsoftbox/cli-app": "^1.0",
         "phpsoftbox/clock": "^1.0",
         "phpsoftbox/config": "^1.0",
-        "phpsoftbox/database": "^1.0",
+        "phpsoftbox/database": "^1.1",
         "phpsoftbox/inflector": "^1.0",
         "phpsoftbox/orm": "^1.0",
         "phpsoftbox/profiler": "^1.0",
