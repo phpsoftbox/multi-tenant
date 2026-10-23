@@ -6,8 +6,9 @@ namespace PhpSoftBox\MultiTenant\Database;
 
 use PhpSoftBox\Config\Config;
 use PhpSoftBox\Database\Configurator\DatabaseFactory;
-use PhpSoftBox\Database\Connection\ConnectionManagerInterface;
+use PhpSoftBox\Database\Connection\WarmupAwareConnectionManagerInterface;
 use PhpSoftBox\Database\Contracts\ConnectionInterface;
+use PhpSoftBox\Database\Contracts\WarmupAwareConnectionInterface;
 use PhpSoftBox\Database\Exception\ConfigurationException;
 use PhpSoftBox\Database\Profiler\DatabaseProfilerCollector;
 use PhpSoftBox\MultiTenant\Contracts\TenantConnectionSwitcherInterface;
@@ -31,7 +32,7 @@ use function str_contains;
 use function str_starts_with;
 use function trim;
 
-final class TenantAwareConnectionManager implements ConnectionManagerInterface, TenantConnectionSwitcherInterface
+final class TenantAwareConnectionManager implements WarmupAwareConnectionManagerInterface, TenantConnectionSwitcherInterface
 {
     /** @var list<?string> */
     private array $stack = [];
@@ -42,7 +43,7 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
     private array $tenantConnections = [];
 
     public function __construct(
-        private readonly ConnectionManagerInterface $baseManager,
+        private readonly WarmupAwareConnectionManagerInterface $baseManager,
         private readonly Config $config,
         private readonly string $tenantConnectionAlias = 'tenant',
         private readonly ?ProfilerInterface $profiler = null,
@@ -136,6 +137,17 @@ final class TenantAwareConnectionManager implements ConnectionManagerInterface, 
         $this->tenantConnections = [];
 
         return $this->tenantConnection($name);
+    }
+
+    public function clearWarmup(): void
+    {
+        $this->baseManager->clearWarmup();
+
+        foreach ($this->tenantConnections as $connection) {
+            if ($connection instanceof WarmupAwareConnectionInterface) {
+                $connection->clearWarmup();
+            }
+        }
     }
 
     private function shouldOverride(string $name): bool
