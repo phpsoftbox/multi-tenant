@@ -17,6 +17,7 @@
 - `tenant:list`
 - `tenant:config:check [--primary=database|config] [--connection=default]`
 - `tenant:db:migrate [--tenant=all] [--path=...] [--fail-fast]`
+- `tenant:db:seed <scenario> --tenant=<id>`
 - `tenant:db:rollback [--tenant=all] [--path=...] [--steps=1] [--fail-fast]`
 - `tenant:db:provision --tenant=<id>|all [--template=<id>] [--migrations-table=migrations] [--drop-existing] [--fail-fast]`
 - `tenant:provision:run --tenant=<id>|all [--template=<id>] [--owner-phone=...] [--owner-name=...] [--owner-email=...] [--no-confirm-phone]`
@@ -55,6 +56,12 @@ tenant БД (при `drop_existing`/`--drop-existing` — удаляют таб�
 
 `tenant:db:migrate` и `tenant:db:rollback` для каждого tenant активируют runtime DSN по `database_name`/`data.database.name`/`data.database.dsn`.
 В логах команды выводят `connection=<alias>, database=<database_name>`, чтобы было видно, какая tenant БД обслуживается.
+
+`php psb tenant:db:seed tenant-defaults --tenant=acme` применяет зарегистрированный seed-сценарий в БД одного
+арендатора. `acme` — значение `TenantDefinition::id`. Опция обязательна и принимает один ID, в том числе ID
+отключённого арендатора. Сценарий должен иметь область `tenant` или `both`. Алиас подключения в записи арендатора
+должен совпадать с алиасом, настроенным в `TenantAwareConnectionManager`. Регистрация сценариев и транзакции описаны
+в [документации Database](https://github.com/phpsoftbox/database/blob/master/docs/10-seeds.md).
 
 `tenant:auth:role:*` команды не читают auth-config проекта и не собирают
 `RoleSynchronizer`/`UserRoleManager` самостоятельно. Приложение должно

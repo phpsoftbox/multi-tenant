@@ -125,6 +125,15 @@ final class TenantAwareConnectionManager implements WarmupAwareConnectionManager
         }
     }
 
+    public function tenantWrite(string $name): ConnectionInterface
+    {
+        if ($name !== $this->tenantConnectionAlias || !$this->shouldOverride($name)) {
+            throw new ConfigurationException('Подключение не относится к активному арендатору: ' . $name);
+        }
+
+        return $this->write($name);
+    }
+
     public function reconnect(string $name = 'default'): ConnectionInterface
     {
         if (!$this->shouldOverride($name)) {
@@ -290,9 +299,11 @@ final class TenantAwareConnectionManager implements WarmupAwareConnectionManager
                 }
             }
 
-            $roleConfig['dsn']             = $dsn;
-            $groupConfig[$role]            = $roleConfig;
-            $connections[$group]           = $groupConfig;
+            $roleConfig['dsn']   = $dsn;
+            $groupConfig[$role]  = $roleConfig;
+            $connections[$group] = $groupConfig;
+            // Фабрика проверяет точное имя раньше группы. Оставляем только роль с активным DSN.
+            unset($connections[$connectionName], $connections[$resolvedName]);
             $databaseConfig['connections'] = $connections;
 
             return $databaseConfig;

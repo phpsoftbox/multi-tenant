@@ -19,6 +19,28 @@ final class TenantCommandProvider implements CommandProviderInterface
     public function register(CommandRegistryInterface $registry): void
     {
         $registry->register(Command::define(
+            name: 'tenant:db:seed',
+            description: 'Применить seed-сценарий для БД арендатора',
+            signature: [
+                new ArgumentDefinition(
+                    name: 'scenario',
+                    description: 'Имя seed-сценария',
+                    required: true,
+                    type: 'string',
+                ),
+                new OptionDefinition(
+                    name: 'tenant',
+                    short: 't',
+                    description: 'ID арендатора',
+                    required: true,
+                    default: null,
+                    type: 'string',
+                ),
+            ],
+            handler: TenantDbSeedHandler::class,
+        ));
+
+        $registry->register(Command::define(
             name: 'tenant:list',
             description: 'Показать список tenant',
             signature: [
